@@ -24,19 +24,19 @@ try {
 let detectPreBreakout, detectVolumeBuildup, detectRangeCompression, evaluateMomentumContext;
 
 try {
-  ({ detectPreBreakout } = require("./services/preBreakout.scanner"));
+  ({ detectPreBreakout } = require("./preBreakout.scanner"));
 } catch (e) {
   detectPreBreakout = () => ({ active: false });
 }
 
 try {
-  ({ detectVolumeBuildup } = require("./services/volumeBuildup.detector"));
+  ({ detectVolumeBuildup } = require("./volumeBuildup.detector"));
 } catch (e) {
   detectVolumeBuildup = () => ({ active: false });
 }
 
 try {
-  ({ detectRangeCompression } = require("./services/rangeCompression.scanner"));
+  ({ detectRangeCompression } = require("./rangeCompression.scanner"));
 } catch (e) {
   detectRangeCompression = () => ({ active: false });
 }
