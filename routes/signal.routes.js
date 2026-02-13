@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const signalService = require('../services/signal.service');
-const candleService = require('./candle.service');
+const candleService = require('../services/candle.service');
 const instruments = require('../config/instruments.config');
 
 router.get('/history', (req, res) => {
