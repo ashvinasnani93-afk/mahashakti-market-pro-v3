@@ -42,7 +42,7 @@ try {
 }
 
 try {
-  ({ evaluateMomentumContext } = require("./services/momentumScanner.service"));
+  ({ evaluateMomentumContext } = require("./momentumScanner.service"));
 } catch (e) {
   evaluateMomentumContext = () => ({ confirmed: false });
 }
