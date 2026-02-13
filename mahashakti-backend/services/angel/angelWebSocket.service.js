@@ -351,29 +351,34 @@ function handleTick(rawData) {
 // =======================
 function parseBinaryTick(buffer) {
   try {
-    // Angel SmartAPI binary format
+    // Angel SmartAPI binary format - convert BigInt to Number
     const data = {
       subscription_mode: buffer.readUInt8(0),
       exchange_type: buffer.readUInt8(1),
       token: buffer.slice(2, 27).toString().replace(/\0/g, '').trim(),
-      sequence_number: buffer.readBigInt64LE(27),
-      exchange_timestamp: buffer.readBigInt64LE(35),
-      last_traded_price: buffer.readBigInt64LE(43),
-      last_traded_quantity: buffer.readBigInt64LE(51),
-      average_traded_price: buffer.readBigInt64LE(59),
-      volume_trade_for_day: buffer.readBigInt64LE(67),
-      total_buy_quantity: buffer.readBigInt64LE(75),
-      total_sell_quantity: buffer.readBigInt64LE(83),
-      open_price_day: buffer.readBigInt64LE(91),
-      high_price_day: buffer.readBigInt64LE(99),
-      low_price_day: buffer.readBigInt64LE(107),
-      close_price: buffer.readBigInt64LE(115)
+      sequence_number: Number(buffer.readBigInt64LE(27)),
+      exchange_timestamp: Number(buffer.readBigInt64LE(35)),
+      last_traded_price: Number(buffer.readBigInt64LE(43)),
+      last_traded_quantity: Number(buffer.readBigInt64LE(51)),
+      average_traded_price: Number(buffer.readBigInt64LE(59)),
+      volume_trade_for_day: Number(buffer.readBigInt64LE(67)),
+      total_buy_quantity: Number(buffer.readBigInt64LE(75)),
+      total_sell_quantity: Number(buffer.readBigInt64LE(83)),
+      open_price_day: Number(buffer.readBigInt64LE(91)),
+      high_price_day: Number(buffer.readBigInt64LE(99)),
+      low_price_day: Number(buffer.readBigInt64LE(107)),
+      close_price: Number(buffer.readBigInt64LE(115))
     };
     
     return data;
   } catch (err) {
     // Fallback to JSON parse if binary fails
-    return JSON.parse(buffer.toString());
+    try {
+      return JSON.parse(buffer.toString());
+    } catch (e) {
+      console.error("[WS] Parse error:", e.message);
+      return null;
+    }
   }
 }
 
