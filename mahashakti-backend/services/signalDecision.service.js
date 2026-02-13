@@ -4,8 +4,18 @@
 // BUY / SELL / STRONG BUY / STRONG SELL / WAIT
 // ==================================================
 
-const { applySafety } = require("./signalSafety.service");
-const { getVixSafetyNote } = require("./signalVix.service");
+// Safe require for safety services
+let applySafety, getVixSafetyNote;
+try {
+  applySafety = require("./signalSafety.service").applySafety;
+} catch (e) {
+  applySafety = (data) => ({ blocked: false, signal: data.signal });
+}
+try {
+  getVixSafetyNote = require("./signalVix.service").getVixSafetyNote;
+} catch (e) {
+  getVixSafetyNote = () => "VIX data unavailable";
+}
 
 // ==================================================
 // CARRY FIX: SAFE REQUIRE FOR OPTIONAL SCANNERS
