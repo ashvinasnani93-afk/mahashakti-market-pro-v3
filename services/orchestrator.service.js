@@ -1,0 +1,414 @@
+const instruments = require('../config/instruments.config');
+const settings = require('../config/settings.config');
+const candleService = require('./candle.service');
+const indicatorService = require('./indicator.service');
+const institutionalService = require('./institutional.service');
+const regimeService = require('./regime.service');
+const explosionService = require('./explosion.service');
+const riskRewardService = require('./riskReward.service');
+const safetyService = require('./safety.service');
+const rankingService = require('./ranking.service');
+
+class OrchestratorService {
+    constructor() {
+        this.signalHistory = new Map();
+        this.activeSignals = [];
+        this.lastAnalysis = new Map();
+    }
+
+    async analyzeInstrument(instrument, candles5m, candles15m, candlesDaily) {
+        const indicators5m = indicatorService.getFullIndicators(candles5m);
+        
+        if (indicators5m.error) {
+            return { 
+                instrument,
+                signal: null, 
+                reason: indicators5m.error,
+                timestamp: Date.now()
+            };
+        }
+
+        const indicators15m = indicatorService.getFullIndicators(candles15m);
+        const indicatorsDaily = indicatorService.getFullIndicators(candlesDaily);
+
+        const breakout = this.checkBreakout(candles5m, indicators5m);
+        const volumeConfirm = this.checkVolumeConfirmation(indicators5m);
+        const higherTFAlign = this.checkHigherTimeframeAlignment(indicators15m, indicatorsDaily);
+        const institutionalHook = this.checkInstitutionalLayer(candles5m, indicators5m);
+
+        const regime = regimeService.analyzeRegime(candles5m, indicators5m);
+
+        const direction = breakout.type === 'BULLISH' ? 'LONG' : breakout.type === 'BEARISH' ? 'SHORT' : null;
+        const riskReward = direction ? riskRewardService.calculate(indicators5m.price, candles5m, indicators5m, direction) : null;
+
+        const safetyCheck = safetyService.runSafetyChecks(
+            instrument,
+            indicators5m,
+            breakout,
+            volumeConfirm,
+            riskReward,
+            regime
+        );
+
+        const analysisData = {
+            instrument,
+            indicators: indicators5m,
+            breakout,
+            volumeConfirm,
+            higherTF: higherTFAlign,
+            institutional: institutionalHook,
+            riskReward,
+            regime,
+            safety: safetyCheck
+        };
+
+        this.lastAnalysis.set(instrument.token, analysisData);
+
+        if (!safetyCheck.pass) {
+            return {
+                instrument,
+                signal: null,
+                reason: `Safety check failed: ${safetyCheck.criticalFails.join(', ')}`,
+                analysis: analysisData,
+                timestamp: Date.now()
+            };
+        }
+
+        const signal = this.generateSignal(analysisData);
+
+        if (signal) {
+            this.recordSignal(instrument.token, signal);
+        }
+
+        return {
+            instrument,
+            signal,
+            analysis: analysisData,
+            timestamp: Date.now()
+        };
+    }
+
+    checkBreakout(candles, indicators) {
+        if (!candles || candles.length < 20) {
+            return { valid: false, type: null };
+        }
+
+        const recent = candles.slice(-20);
+        const closes = recent.map(c => c.close);
+        const highs = recent.map(c => c.high);
+        const lows = recent.map(c => c.low);
+
+        const resistance = Math.max(...highs.slice(0, -1));
+        const support = Math.min(...lows.slice(0, -1));
+
+        const lastClose = closes[closes.length - 1];
+        const prevClose = closes[closes.length - 2];
+
+        const breakoutUp = lastClose > resistance && prevClose <= resistance;
+        const breakoutDown = lastClose < support && prevClose >= support;
+
+        const ema20 = indicators.ema20;
+        const ema50 = indicators.ema50;
+
+        const emaBreakoutUp = lastClose > ema20 && prevClose <= ema20 && ema20 > ema50;
+        const emaBreakoutDown = lastClose < ema20 && prevClose >= ema20 && ema20 < ema50;
+
+        const vwapBreakoutUp = indicators.vwap && lastClose > indicators.vwap && prevClose <= indicators.vwap;
+        const vwapBreakoutDown = indicators.vwap && lastClose < indicators.vwap && prevClose >= indicators.vwap;
+
+        const bullishBreakout = breakoutUp || emaBreakoutUp || vwapBreakoutUp;
+        const bearishBreakout = breakoutDown || emaBreakoutDown || vwapBreakoutDown;
+
+        return {
+            valid: bullishBreakout || bearishBreakout,
+            type: bullishBreakout ? 'BULLISH' : bearishBreakout ? 'BEARISH' : null,
+            resistance,
+            support,
+            priceAboveResistance: breakoutUp,
+            priceBelowSupport: breakoutDown,
+            emaBreakout: emaBreakoutUp || emaBreakoutDown,
+            vwapBreakout: vwapBreakoutUp || vwapBreakoutDown,
+            details: {
+                lastClose,
+                prevClose,
+                ema20,
+                ema50,
+                vwap: indicators.vwap
+            }
+        };
+    }
+
+    checkVolumeConfirmation(indicators) {
+        const volumeRatio = indicators.volumeRatio || 0;
+        const volumeConfig = settings.indicators.volume;
+
+        let strength = 'LOW';
+        if (volumeRatio >= volumeConfig.explosionRatio) {
+            strength = 'EXPLOSION';
+        } else if (volumeRatio >= volumeConfig.highRatio) {
+            strength = 'HIGH';
+        } else if (volumeRatio >= volumeConfig.minRatio) {
+            strength = 'MODERATE';
+        }
+
+        return {
+            confirmed: volumeRatio >= volumeConfig.minRatio,
+            ratio: volumeRatio,
+            strength,
+            avgVolume: indicators.avgVolume,
+            currentVolume: indicators.volume
+        };
+    }
+
+    checkHigherTimeframeAlignment(indicators15m, indicatorsDaily) {
+        const tf15mBullish = indicators15m?.emaTrend === 'BULLISH' || indicators15m?.emaTrend === 'STRONG_BULLISH';
+        const tf15mBearish = indicators15m?.emaTrend === 'BEARISH' || indicators15m?.emaTrend === 'STRONG_BEARISH';
+        
+        const dailyBullish = indicatorsDaily?.emaTrend === 'BULLISH' || indicatorsDaily?.emaTrend === 'STRONG_BULLISH';
+        const dailyBearish = indicatorsDaily?.emaTrend === 'BEARISH' || indicatorsDaily?.emaTrend === 'STRONG_BEARISH';
+
+        const tf15mRsiOk = indicators15m?.rsi > 35 && indicators15m?.rsi < 75;
+        const dailyRsiOk = indicatorsDaily?.rsi > 35 && indicatorsDaily?.rsi < 75;
+
+        const fullBullishAlignment = tf15mBullish && dailyBullish;
+        const fullBearishAlignment = tf15mBearish && dailyBearish;
+
+        let score = 0;
+        if (tf15mBullish || dailyBullish) score += 1;
+        if (fullBullishAlignment || fullBearishAlignment) score += 1;
+        if (tf15mRsiOk) score += 0.5;
+        if (dailyRsiOk) score += 0.5;
+
+        return {
+            tf15m: {
+                trend: indicators15m?.emaTrend,
+                rsi: indicators15m?.rsi,
+                aligned: (tf15mBullish || tf15mBearish) && tf15mRsiOk
+            },
+            daily: {
+                trend: indicatorsDaily?.emaTrend,
+                rsi: indicatorsDaily?.rsi,
+                aligned: (dailyBullish || dailyBearish) && dailyRsiOk
+            },
+            fullAlignment: fullBullishAlignment || fullBearishAlignment,
+            alignmentType: fullBullishAlignment ? 'BULLISH' : fullBearishAlignment ? 'BEARISH' : 'NONE',
+            score
+        };
+    }
+
+    checkInstitutionalLayer(candles, indicators) {
+        if (!candles || candles.length < 5) {
+            return { detected: false, score: 0 };
+        }
+
+        const lastCandles = candles.slice(-5);
+        
+        const largeBars = lastCandles.filter(c => {
+            const range = c.high - c.low;
+            const avgRange = indicators.atr || 0;
+            return range > avgRange * 1.5 && c.volume > (indicators.avgVolume || 0) * 2;
+        });
+
+        const priceAboveVwap = indicators.price > (indicators.vwap || 0);
+        const strongMomentum = (indicators.macdHistogram || 0) > 0 && (indicators.rsi || 0) > 50;
+
+        const wideRangeBar = lastCandles.some(c => {
+            const range = c.high - c.low;
+            const body = Math.abs(c.close - c.open);
+            return body > range * 0.7 && c.volume > (indicators.avgVolume || 0) * 2.5;
+        });
+
+        let score = 0;
+        if (largeBars.length > 0) score += 2;
+        if (priceAboveVwap) score += 1;
+        if (strongMomentum) score += 1;
+        if (wideRangeBar) score += 2;
+
+        return {
+            detected: score >= 3,
+            largeBars: largeBars.length,
+            priceAboveVwap,
+            strongMomentum,
+            wideRangeBar,
+            score
+        };
+    }
+
+    generateSignal(analysisData) {
+        const { 
+            instrument, 
+            indicators, 
+            breakout, 
+            volumeConfirm, 
+            higherTF, 
+            institutional, 
+            riskReward,
+            regime,
+            safety 
+        } = analysisData;
+
+        if (!breakout.valid || !volumeConfirm.confirmed) {
+            return null;
+        }
+
+        if (!riskReward || !riskReward.valid) {
+            return null;
+        }
+
+        let strength = 0;
+
+        strength += breakout.valid ? 2 : 0;
+        strength += breakout.priceAboveResistance || breakout.priceBelowSupport ? 1 : 0;
+        strength += breakout.emaBreakout ? 1 : 0;
+
+        strength += volumeConfirm.confirmed ? 1 : 0;
+        strength += volumeConfirm.strength === 'HIGH' ? 1 : 0;
+        strength += volumeConfirm.strength === 'EXPLOSION' ? 2 : 0;
+
+        strength += higherTF.fullAlignment ? 2 : 0;
+        strength += higherTF.score;
+
+        strength += institutional.detected ? 2 : 0;
+        strength += Math.min(institutional.score, 4);
+
+        strength += riskReward.primaryRR >= 2.5 ? 2 : riskReward.primaryRR >= 2 ? 1 : 0;
+
+        if (regime && regime.regime === 'TRENDING_UP' && breakout.type === 'BULLISH') {
+            strength += 1;
+        }
+        if (regime && regime.regime === 'TRENDING_DOWN' && breakout.type === 'BEARISH') {
+            strength += 1;
+        }
+
+        let signalType = null;
+        const threshold = settings.signals.strongSignalThreshold;
+
+        if (breakout.type === 'BULLISH') {
+            signalType = strength >= threshold ? 'STRONG_BUY' : 'BUY';
+        } else if (breakout.type === 'BEARISH') {
+            signalType = strength >= threshold ? 'STRONG_SELL' : 'SELL';
+        }
+
+        if (!signalType) return null;
+
+        return {
+            instrument: {
+                symbol: instrument.symbol,
+                token: instrument.token,
+                name: instrument.name,
+                exchange: instrument.exchange,
+                sector: instrument.sector
+            },
+            signal: signalType,
+            direction: breakout.type === 'BULLISH' ? 'LONG' : 'SHORT',
+            strength,
+            confidence: Math.min(100, (strength / 15) * 100),
+            price: indicators.price,
+            entry: riskReward.entry,
+            stopLoss: riskReward.stopLoss,
+            target1: riskReward.target1,
+            target2: riskReward.target2,
+            target3: riskReward.target3,
+            riskReward: riskReward.primaryRR,
+            riskPercent: riskReward.riskPercent,
+            analysis: {
+                breakout: {
+                    type: breakout.type,
+                    resistance: breakout.resistance,
+                    support: breakout.support
+                },
+                volume: {
+                    ratio: volumeConfirm.ratio,
+                    strength: volumeConfirm.strength
+                },
+                higherTimeframe: {
+                    alignment: higherTF.alignmentType,
+                    score: higherTF.score
+                },
+                institutional: {
+                    detected: institutional.detected,
+                    score: institutional.score
+                },
+                regime: regime?.regime,
+                indicators: {
+                    ema20: indicators.ema20,
+                    ema50: indicators.ema50,
+                    rsi: indicators.rsi,
+                    atr: indicators.atr,
+                    vwap: indicators.vwap,
+                    macdHistogram: indicators.macdHistogram
+                }
+            },
+            safety: {
+                score: safety.score,
+                warnings: safety.warnings
+            },
+            timestamp: Date.now()
+        };
+    }
+
+    recordSignal(token, signal) {
+        const history = this.signalHistory.get(token) || [];
+        history.push(signal);
+        
+        if (history.length > 100) {
+            history.shift();
+        }
+        
+        this.signalHistory.set(token, history);
+
+        this.activeSignals = this.activeSignals.filter(s => s.instrument.token !== token);
+        this.activeSignals.push(signal);
+
+        if (this.activeSignals.length > 50) {
+            this.activeSignals.sort((a, b) => b.strength - a.strength);
+            this.activeSignals = this.activeSignals.slice(0, 50);
+        }
+
+        console.log(`[ORCHESTRATOR] Signal: ${signal.signal} ${signal.instrument.symbol} @ ${signal.price} (Strength: ${signal.strength})`);
+    }
+
+    getActiveSignals(filters = {}) {
+        let signals = [...this.activeSignals];
+
+        if (filters.type) {
+            signals = signals.filter(s => s.signal === filters.type);
+        }
+        if (filters.direction) {
+            signals = signals.filter(s => s.direction === filters.direction);
+        }
+        if (filters.minStrength) {
+            signals = signals.filter(s => s.strength >= filters.minStrength);
+        }
+        if (filters.sector) {
+            signals = signals.filter(s => s.instrument.sector === filters.sector);
+        }
+
+        return signals.sort((a, b) => b.strength - a.strength);
+    }
+
+    getSignalHistory(token, count = 50) {
+        const history = this.signalHistory.get(token) || [];
+        return history.slice(-count).reverse();
+    }
+
+    getAllSignalHistory(count = 100) {
+        const all = [];
+        this.signalHistory.forEach((signals) => {
+            all.push(...signals);
+        });
+        return all.sort((a, b) => b.timestamp - a.timestamp).slice(0, count);
+    }
+
+    getLastAnalysis(token) {
+        return this.lastAnalysis.get(token) || null;
+    }
+
+    clearSignals() {
+        this.signalHistory.clear();
+        this.activeSignals = [];
+        this.lastAnalysis.clear();
+    }
+}
+
+module.exports = new OrchestratorService();
