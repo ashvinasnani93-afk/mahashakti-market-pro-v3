@@ -1,206 +1,428 @@
 // ==========================================
-// SCANNER ROUTES
-// API endpoints for market scanning
+// MAHASHAKTI MARKET PRO - SCANNER & ORCHESTRATOR ROUTES
+// Institutional-Grade Market Intelligence API
 // ==========================================
 
 const express = require("express");
 const router = express.Router();
 
+// Scanner Services
 const {
-  runFullScan,
+  startScanner,
+  stopScanner,
+  manualScan,
   getScanResults,
-  getUniversalSignals,
-  getExplosionSignals,
-  scanSymbol,
-  scanIndices,
-  scanFnOStocks
-} = require("../services/scanner.service");
+  getTopCandidates,
+  getScannerStatus
+} = require("../services/marketScanner.service");
+
+// Ranking Engine
+const {
+  rankStocks,
+  getTopNForWebSocket
+} = require("../services/rankingEngine.service");
+
+// Focus WS Manager
+const {
+  startFocusManager,
+  stopFocusManager,
+  getFocusStatus,
+  manualSubscribe,
+  manualUnsubscribe
+} = require("../services/focusWsManager.service");
+
+// Signal Orchestrator
+const {
+  processSignalRequest,
+  processBatchSignals,
+  getTopSignals,
+  getMarketContext
+} = require("../services/signalOrchestrator.service");
 
 // ==========================================
-// GET /api/scanner/results - All scan results
+// SCANNER ROUTES
 // ==========================================
-router.get("/results", (req, res) => {
-  const results = getScanResults();
 
-  res.json({
-    status: true,
-    screen1: {
-      name: "Universal Signals",
-      description: "STRONG_BUY, BUY, STRONG_SELL, SELL only",
-      signals: results.screen1,
-      count: results.screen1?.length || 0
-    },
-    screen2: {
-      name: "Explosion Signals",
-      description: "EARLY_EXPANSION, HIGH_MOMENTUM_RUNNER, OPTION_ACCELERATION, SWING_CONTINUATION",
-      signals: results.screen2,
-      count: results.screen2?.length || 0
-    },
-    meta: {
-      lastScanTime: results.lastScanTime,
-      scanDuration: results.scanDuration,
-      indicesScanned: results.indicesScanned,
-      stocksScanned: results.stocksScanned
-    }
-  });
-});
-
-// ==========================================
-// GET /api/scanner/universal - Screen 1 signals
-// ==========================================
-router.get("/universal", (req, res) => {
-  const signals = getUniversalSignals();
-
-  res.json({
-    status: true,
-    screenType: "SCREEN_1_UNIVERSAL",
-    ...signals
-  });
-});
-
-// ==========================================
-// GET /api/scanner/explosions - Screen 2 signals
-// ==========================================
-router.get("/explosions", (req, res) => {
-  const signals = getExplosionSignals();
-
-  res.json({
-    status: true,
-    screenType: "SCREEN_2_EXPLOSION",
-    ...signals
-  });
-});
-
-// ==========================================
-// POST /api/scanner/run - Trigger manual scan
-// ==========================================
-router.post("/run", async (req, res) => {
+// Start market scanner
+router.post("/scanner/start", (req, res) => {
   try {
-    console.log("[SCANNER] Manual scan triggered...");
-    
-    const results = await runFullScan();
-
-    res.json({
-      status: true,
-      message: "Scan completed",
-      results: {
-        universalSignals: results.screen1?.length || 0,
-        explosionSignals: results.screen2?.length || 0,
-        duration: results.scanDuration
-      }
-    });
-
-  } catch (err) {
+    const result = startScanner();
+    res.json(result);
+  } catch (error) {
     res.status(500).json({
-      status: false,
-      error: err.message
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Stop market scanner
+router.post("/scanner/stop", (req, res) => {
+  try {
+    const result = stopScanner();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get scanner status
+router.get("/scanner/status", (req, res) => {
+  try {
+    const status = getScannerStatus();
+    res.json({
+      success: true,
+      ...status
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Trigger manual scan
+router.post("/scanner/scan", async (req, res) => {
+  try {
+    const result = await manualScan();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get scan results
+router.get("/scanner/results", (req, res) => {
+  try {
+    const results = getScanResults();
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get top candidates for WS focus
+router.get("/scanner/candidates", (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 100;
+    const candidates = getTopCandidates(limit);
+    
+    res.json({
+      success: true,
+      count: candidates.length,
+      candidates
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
 
 // ==========================================
-// GET /api/scanner/symbol/:symbol - Scan single symbol
+// RANKING ROUTES
 // ==========================================
-router.get("/symbol/:symbol", async (req, res) => {
-  try {
-    const { symbol } = req.params;
 
-    if (!symbol) {
+// Rank latest scan results
+router.get("/ranking/rank", (req, res) => {
+  try {
+    const scanResults = getScanResults();
+    
+    if (!scanResults.success) {
       return res.status(400).json({
-        status: false,
-        error: "Symbol required"
+        success: false,
+        message: "No scan results available"
       });
     }
 
-    const result = await scanSymbol(symbol.toUpperCase());
-
-    res.json({
-      status: result.success,
-      ...result
-    });
-
-  } catch (err) {
+    const ranked = rankStocks(scanResults);
+    res.json(ranked);
+  } catch (error) {
     res.status(500).json({
-      status: false,
-      error: err.message
+      success: false,
+      error: error.message
     });
   }
 });
 
-// ==========================================
-// GET /api/scanner/indices - Scan all indices
-// ==========================================
-router.get("/indices", async (req, res) => {
+// Get top N for WebSocket
+router.get("/ranking/top-for-ws", (req, res) => {
   try {
-    const results = await scanIndices();
+    const n = parseInt(req.query.n) || 100;
+    const scanResults = getScanResults();
+    
+    if (!scanResults.success) {
+      return res.status(400).json({
+        success: false,
+        message: "No scan results available"
+      });
+    }
 
+    const ranked = rankStocks(scanResults);
+    const topN = getTopNForWebSocket(ranked, n);
+    
     res.json({
-      status: true,
-      indices: results,
-      count: results.length
+      success: true,
+      count: topN.length,
+      candidates: topN
     });
-
-  } catch (err) {
+  } catch (error) {
     res.status(500).json({
-      status: false,
-      error: err.message
+      success: false,
+      error: error.message
     });
   }
 });
 
 // ==========================================
-// GET /api/scanner/fno - Scan F&O stocks
+// FOCUS WS MANAGER ROUTES
 // ==========================================
-router.get("/fno", async (req, res) => {
+
+// Start focus manager
+router.post("/focus/start", (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
-    const results = await scanFnOStocks(limit);
-
-    res.json({
-      status: true,
-      stocks: results,
-      count: results.length,
-      limit
-    });
-
-  } catch (err) {
+    const result = startFocusManager();
+    res.json(result);
+  } catch (error) {
     res.status(500).json({
-      status: false,
-      error: err.message
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Stop focus manager
+router.post("/focus/stop", (req, res) => {
+  try {
+    const result = stopFocusManager();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get focus status
+router.get("/focus/status", (req, res) => {
+  try {
+    const status = getFocusStatus();
+    res.json({
+      success: true,
+      ...status
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Manual subscribe
+router.post("/focus/subscribe", (req, res) => {
+  try {
+    const { tokens } = req.body;
+    
+    if (!tokens || !Array.isArray(tokens)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tokens array"
+      });
+    }
+
+    const result = manualSubscribe(tokens);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Manual unsubscribe
+router.post("/focus/unsubscribe", (req, res) => {
+  try {
+    const { tokens } = req.body;
+    
+    if (!tokens || !Array.isArray(tokens)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid tokens array"
+      });
+    }
+
+    const result = manualUnsubscribe(tokens);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
 
 // ==========================================
-// GET /api/scanner/strong-buy - Only STRONG_BUY signals
+// SIGNAL ORCHESTRATOR ROUTES
 // ==========================================
-router.get("/strong-buy", (req, res) => {
-  const results = getScanResults();
-  const strongBuys = results.screen1?.filter(s => s.signal === "STRONG_BUY") || [];
 
-  res.json({
-    status: true,
-    signal: "STRONG_BUY",
-    signals: strongBuys,
-    count: strongBuys.length,
-    lastScan: results.lastScanTime
-  });
+// Get signal for single symbol
+router.get("/signal/:symbol", async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const options = req.query || {};
+    
+    const signal = await processSignalRequest(symbol, options);
+    res.json(signal);
+  } catch (error) {
+    res.status(500).json({
+      signal: "WAIT",
+      error: error.message
+    });
+  }
+});
+
+// Get signals for multiple symbols (batch)
+router.post("/signal/batch", async (req, res) => {
+  try {
+    const { symbols, options } = req.body;
+    
+    if (!symbols || !Array.isArray(symbols)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid symbols array"
+      });
+    }
+
+    const result = await processBatchSignals(symbols, options || {});
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get top signals (best opportunities)
+router.get("/signal/top", async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const result = await getTopSignals(limit);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get market context
+router.get("/market/context", async (req, res) => {
+  try {
+    const context = await getMarketContext();
+    res.json({
+      success: true,
+      ...context
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
 // ==========================================
-// GET /api/scanner/strong-sell - Only STRONG_SELL signals
+// SYSTEM CONTROL - Start All Services
 // ==========================================
-router.get("/strong-sell", (req, res) => {
-  const results = getScanResults();
-  const strongSells = results.screen1?.filter(s => s.signal === "STRONG_SELL") || [];
+router.post("/system/start", async (req, res) => {
+  try {
+    console.log("[SYSTEM] 🚀 Starting all services...");
+    
+    const results = {
+      scanner: startScanner(),
+      focusManager: startFocusManager()
+    };
 
-  res.json({
-    status: true,
-    signal: "STRONG_SELL",
-    signals: strongSells,
-    count: strongSells.length,
-    lastScan: results.lastScanTime
-  });
+    res.json({
+      success: true,
+      message: "All services started",
+      results
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 });
 
+// Stop all services
+router.post("/system/stop", (req, res) => {
+  try {
+    console.log("[SYSTEM] 🛑 Stopping all services...");
+    
+    const results = {
+      scanner: stopScanner(),
+      focusManager: stopFocusManager()
+    };
+
+    res.json({
+      success: true,
+      message: "All services stopped",
+      results
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Get system status
+router.get("/system/status", (req, res) => {
+  try {
+    const scannerStatus = getScannerStatus();
+    const focusStatus = getFocusStatus();
+
+    res.json({
+      success: true,
+      system: "Mahashakti Market Pro - Institutional Grade",
+      version: "2.0",
+      scanner: scannerStatus,
+      focus: {
+        active: focusStatus.active,
+        subscriptions: focusStatus.subscriptionCount,
+        maxTokens: focusStatus.maxTokens,
+        utilization: focusStatus.utilization
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ==========================================
+// EXPORTS
+// ==========================================
 module.exports = router;

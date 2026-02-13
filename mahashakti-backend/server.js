@@ -1,28 +1,34 @@
 // ==========================================
 // MAHASHAKTI MARKET PRO - MAIN SERVER
-// INSTITUTIONAL SNIPER ENGINE
-// Live Angel One API + MongoDB Integration
+// REAL ANGEL ONE API INTEGRATION
+// Complete Option Chains + Signals
+// FIXED: WebSocket starts AFTER login
 // ==========================================
-
+// Load environment variables FIRST
 require('dotenv').config();
 
 const express = require("express");
 const cors = require("cors");
-const mongoose = require("mongoose");
 
-// Angel Services
+// Angel One Services
 const { loginWithPassword, generateToken } = require("./services/angel/angelAuth.service");
-const { connectWebSocket, getWebSocketStatus, getStabilityLog } = require("./services/angel/angelWebSocket.service");
-const { setGlobalTokens } = require("./services/angel/angelApi.service");
+const { setGlobalTokens, getLtpData } = require("./services/angel/angelApi.service");
+const { connectWebSocket, getWebSocketStatus, subscribeTokens, unsubscribeTokens, getSubscriptionCount } = require("./services/angel/angelWebSocket.service");
 
-// Token & Scanner Services
-const { initializeTokenService, getMasterStats } = require("./services/tokenMaster.service");
-const { runFullScan, getScanResults, getUniversalSignals, getExplosionSignals, startAutoScanner, scanSymbol } = require("./services/scanner.service");
+// Token & Symbol Services
+const { initializeTokenService } = require("./token.service");
+const { setAllSymbols } = require("./symbol.service");
 
 // API Routes
+const optionChainRoutes = require("./routes/optionChain.routes");
 const signalRoutes = require("./routes/signal.routes");
-const scannerRoutes = require("./routes/scanner.routes");
-const statusRoutes = require("./routes/status.routes");
+const ltpRoutes = require("./routes/ltp.routes");
+const signalIntelRoutes = require("./routes/signal.intel.routes");
+
+const searchRoutes = require("./routes/search.routes");
+const optionSignalRoutes = require("./routes/optionSignal.routes");
+const exitEngineRoutes = require("./routes/exitEngine.routes");
+const strikeExplosionRoutes = require("./routes/strikeExplosion.routes");
 
 // ==========================================
 // APP INITIALIZATION
@@ -30,6 +36,11 @@ const statusRoutes = require("./routes/status.routes");
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+app.use("/api/search", searchRoutes);
+app.use("/api/option-signal", optionSignalRoutes);
+app.use("/api/exit-engine", exitEngineRoutes);
+app.use("/api/strike/explosion", strikeExplosionRoutes);
 
 // ==========================================
 // GLOBAL STATE
@@ -39,38 +50,12 @@ global.angelSession = {
   refreshToken: null,
   feedToken: null,
   clientCode: null,
-  apiKey: null,
   isLoggedIn: false,
   wsConnected: false
 };
 
 global.latestLTP = {};
-global.latestOHLC = {};
-global.SYMBOL_MASTER = {};
-
-// ==========================================
-// MONGODB CONNECTION
-// ==========================================
-async function connectMongoDB() {
-  const mongoUrl = process.env.MONGO_URL;
-  const dbName = process.env.DB_NAME || "mahashakti";
-
-  if (!mongoUrl) {
-    console.log("[DB] MONGO_URL not set - running without database");
-    return false;
-  }
-
-  try {
-    await mongoose.connect(mongoUrl, {
-      dbName: dbName
-    });
-    console.log(`[DB] Connected to MongoDB: ${dbName}`);
-    return true;
-  } catch (err) {
-    console.error("[DB] MongoDB connection error:", err.message);
-    return false;
-  }
-}
+global.symbolOpenPrice = {};
 
 // ==========================================
 // BASIC ROUTES
@@ -78,23 +63,14 @@ async function connectMongoDB() {
 app.get("/", (req, res) => {
   res.json({
     status: "LIVE",
-    service: "MAHASHAKTI Market Pro API",
+    service: "Mahashakti Market Pro API",
     version: "2.0.0",
-    description: "Institutional Sniper Engine",
-    features: [
-      "Full Market Scan",
-      "Actionable Signals Only (BUY/SELL/STRONG_BUY/STRONG_SELL)",
-      "Explosion Engine (Early Expansion, High Momentum, Option Acceleration)",
-      "Real-time WebSocket (Max 50 subscriptions)",
-      "Multi-timeframe Analysis"
-    ],
+    realData: true,
     endpoints: {
-      status: "/api/status",
-      scannerResults: "/api/scanner/results",
-      universalSignals: "/api/scanner/universal",
-      explosionSignals: "/api/scanner/explosions",
-      wsStability: "/api/status/ws-stability",
-      runScan: "/api/scanner/run"
+      optionChain: "/api/option-chain?symbol=NIFTY",
+      signal: "/api/signal",
+      ltp: "/api/ltp?symbol=NIFTY",
+      status: "/api/status"
     }
   });
 });
@@ -103,59 +79,109 @@ app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     uptime: process.uptime(),
-    timestamp: Date.now(),
-    memory: process.memoryUsage()
+    timestamp: Date.now()
+  });
+});
+
+// ==========================================
+// SYSTEM STATUS (ENHANCED WITH WS STATUS)
+// ==========================================
+app.get("/api/status", (req, res) => {
+  // Get real WebSocket status
+  const wsStatus = getWebSocketStatus();
+  
+  res.json({
+    status: true,
+    angelLogin: global.angelSession.isLoggedIn,
+    wsConnected: wsStatus.connected && !wsStatus.isStale,
+    isStale: wsStatus.isStale,
+    lastTickAge: wsStatus.lastTickAge,
+    tickCount: wsStatus.tickCount,
+    subscriptionCount: wsStatus.subscriptionCount,
+    ltpCacheSize: wsStatus.ltpCacheSize,
+    jwtToken: global.angelSession.jwtToken ? "SET" : "NOT_SET",
+    feedToken: global.angelSession.feedToken ? "SET" : "NOT_SET",
+    ltpCount: Object.keys(global.latestLTP).length,
+    service: "Mahashakti Market Pro",
+    timestamp: new Date().toISOString()
   });
 });
 
 // ==========================================
 // ROUTE MOUNTING
 // ==========================================
+app.use("/api/option-chain", optionChainRoutes);
 app.use("/api/signal", signalRoutes);
-app.use("/api/scanner", scannerRoutes);
-app.use("/api/status", statusRoutes);
+app.use("/api/signal/intel", signalIntelRoutes);
+app.use("/api/ltp", ltpRoutes);
 
 // ==========================================
-// LEGACY /api/status (for compatibility)
+// DYNAMIC SUBSCRIPTION ENDPOINTS
 // ==========================================
-app.get("/api/status", (req, res) => {
+
+// Subscribe tokens (for option chain, scanner)
+app.post("/api/ws/subscribe", (req, res) => {
+  try {
+    const { tokens, source } = req.body;
+    
+    if (!tokens || !Array.isArray(tokens)) {
+      return res.status(400).json({
+        status: false,
+        error: "tokens array required"
+      });
+    }
+
+    const success = subscribeTokens(tokens, source || "api");
+    
+    res.json({
+      status: success,
+      subscribed: tokens.length,
+      totalSubscriptions: getSubscriptionCount()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      error: err.message
+    });
+  }
+});
+
+// Unsubscribe tokens (when leaving screen)
+app.post("/api/ws/unsubscribe", (req, res) => {
+  try {
+    const { tokens, source } = req.body;
+    
+    if (!tokens || !Array.isArray(tokens)) {
+      return res.status(400).json({
+        status: false,
+        error: "tokens array required"
+      });
+    }
+
+    const success = unsubscribeTokens(tokens, source || "api");
+    
+    res.json({
+      status: success,
+      unsubscribed: tokens.length,
+      remainingSubscriptions: getSubscriptionCount()
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      error: err.message
+    });
+  }
+});
+
+// Get subscription status
+app.get("/api/ws/subscriptions", (req, res) => {
   const wsStatus = getWebSocketStatus();
-  const masterStats = getMasterStats();
-  
   res.json({
     status: true,
-    service: "MAHASHAKTI Market Pro",
-    version: "2.0.0",
-    
-    // Angel Session
-    angelLogin: global.angelSession?.isLoggedIn || false,
-    
-    // WebSocket Status
-    wsConnected: wsStatus.connected,
-    wsConnecting: wsStatus.connecting,
-    isStale: wsStatus.isStale,
-    lastTickAge: wsStatus.lastTickAge,
-    tickCount: wsStatus.tickCount,
-    subscriptionCount: wsStatus.subscriptionCount,
-    maxSubscriptions: wsStatus.maxSubscriptions,
-    utilization: wsStatus.utilization,
-    reconnectAttempts: wsStatus.reconnectAttempts,
-    errors429: wsStatus.errors429,
-    
-    // LTP Cache
-    ltpCacheSize: Object.keys(global.latestLTP || {}).length,
-    
-    // Token Master
-    masterStats: masterStats,
-    
-    // Scan Status
-    scanResults: {
-      universalSignals: getScanResults().screen1?.length || 0,
-      explosionSignals: getScanResults().screen2?.length || 0,
-      lastScan: getScanResults().lastScanTime
-    },
-    
-    timestamp: new Date().toISOString()
+    count: wsStatus.subscriptionCount,
+    ltpCacheSize: wsStatus.ltpCacheSize,
+    connected: wsStatus.connected,
+    tickCount: wsStatus.tickCount
   });
 });
 
@@ -183,11 +209,11 @@ async function performAngelLogin() {
     } = process.env;
 
     if (!ANGEL_API_KEY || !ANGEL_CLIENT_ID || !ANGEL_PASSWORD || !ANGEL_TOTP_SECRET) {
-      console.log("[AUTH] Angel credentials missing in .env");
+      console.log("⚠️ Angel credentials missing in .env");
       return false;
     }
 
-    console.log("[AUTH] Logging into Angel One...");
+    console.log("🔐 Logging into Angel One...");
 
     const result = await loginWithPassword({
       clientCode: ANGEL_CLIENT_ID,
@@ -197,27 +223,31 @@ async function performAngelLogin() {
     });
 
     if (result.success) {
-      global.angelSession = {
-        jwtToken: result.jwtToken,
-        refreshToken: result.refreshToken,
-        feedToken: result.feedToken,
-        clientCode: result.clientCode,
-        apiKey: ANGEL_API_KEY,
-        isLoggedIn: true,
-        wsConnected: false
-      };
+      global.angelSession.jwtToken = result.jwtToken;
+      global.angelSession.refreshToken = result.refreshToken;
+      global.angelSession.feedToken = result.feedToken;
+      global.angelSession.clientCode = result.clientCode;
+      global.angelSession.isLoggedIn = true;
 
-      setGlobalTokens(result.jwtToken, ANGEL_API_KEY, result.clientCode);
+      // Set tokens for API service
+      setGlobalTokens(
+        result.jwtToken,
+        ANGEL_API_KEY,
+        result.clientCode
+      );
 
-      console.log("[AUTH] Angel One Login SUCCESS");
+      console.log("✅ Angel One Login SUCCESS");
+      console.log("📡 JWT Token:", result.jwtToken.substring(0, 20) + "...");
+      console.log("📡 Feed Token:", result.feedToken.substring(0, 20) + "...");
+
       return true;
     } else {
-      console.error("[AUTH] Angel Login Failed:", result.error);
+      console.error("❌ Angel Login Failed:", result.error);
       return false;
     }
 
   } catch (err) {
-    console.error("[AUTH] Login Error:", err.message);
+    console.error("❌ Login Error:", err.message);
     return false;
   }
 }
@@ -227,9 +257,9 @@ async function performAngelLogin() {
 // ==========================================
 async function autoRefreshToken() {
   try {
-    if (!global.angelSession?.refreshToken) return;
+    if (!global.angelSession.refreshToken) return;
 
-    console.log("[AUTH] Refreshing token...");
+    console.log("🔄 Refreshing Angel Token...");
 
     const result = await generateToken(
       global.angelSession.refreshToken,
@@ -243,23 +273,25 @@ async function autoRefreshToken() {
 
       setGlobalTokens(result.jwtToken, process.env.ANGEL_API_KEY);
 
-      console.log("[AUTH] Token Refreshed Successfully");
-
-      // Restart WebSocket with new tokens
+      console.log("✅ Token Refreshed");
+      
+      // ✅ FIX: Restart WebSocket with new tokens
+      console.log("🔄 Restarting WebSocket with new tokens...");
       await connectWebSocket(
         result.jwtToken,
         process.env.ANGEL_API_KEY,
         global.angelSession.clientCode,
-        result.feedToken
+       result.feedToken
       );
-
+      
     } else {
-      console.error("[AUTH] Token Refresh Failed - Re-login required");
-      await performAngelLogin();
+      console.error("❌ Token Refresh Failed");
+      // Re-login
+      performAngelLogin();
     }
 
   } catch (err) {
-    console.error("[AUTH] Auto Refresh Error:", err.message);
+    console.error("❌ Auto Refresh Error:", err.message);
   }
 }
 
@@ -269,35 +301,34 @@ setInterval(autoRefreshToken, 5 * 60 * 60 * 1000);
 // ==========================================
 // SERVER STARTUP
 // ==========================================
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080
 
 app.listen(PORT, async () => {
-  console.log("=".repeat(60));
-  console.log("  MAHASHAKTI MARKET PRO - INSTITUTIONAL SNIPER ENGINE");
-  console.log("=".repeat(60));
-  console.log(`  Port: ${PORT}`);
-  console.log(`  URL: http://localhost:${PORT}`);
-  console.log("=".repeat(60));
+  console.log("=".repeat(50));
+  console.log("🚀 MAHASHAKTI MARKET PRO - SERVER STARTED");
+  console.log("=".repeat(50));
+  console.log(`📡 Port: ${PORT}`);
+  console.log(`🌐 URL: http://localhost:${PORT}`);
+  console.log("=".repeat(50));
 
   try {
-    // Step 1: Connect to MongoDB
-    await connectMongoDB();
-
-    // Step 2: Login to Angel One
+    // Step 1: Login to Angel One FIRST
     const loginSuccess = await performAngelLogin();
 
     if (!loginSuccess) {
-      console.log("[STARTUP] Angel login failed - Running in LIMITED MODE");
+      console.log("⚠️ Angel login failed — server running in LIMITED MODE");
       return;
     }
 
-    // Step 3: Load Symbol Master
-    console.log("[STARTUP] Loading Symbol Master...");
+    // Step 2: Load Option Master AFTER successful login
+    console.log("📥 Loading Option Master...");
     await initializeTokenService();
-    console.log("[STARTUP] Symbol Master Loaded");
+    console.log("✅ Option Master Loaded");
 
-    // Step 4: Start WebSocket
-    console.log("[STARTUP] Starting WebSocket...");
+    // ==========================================
+    // ✅ FIX: START WEBSOCKET AFTER LOGIN SUCCESS
+    // ==========================================
+    console.log("🔌 Starting WebSocket connection...");
     await connectWebSocket(
       global.angelSession.jwtToken,
       process.env.ANGEL_API_KEY,
@@ -305,16 +336,11 @@ app.listen(PORT, async () => {
       global.angelSession.feedToken
     );
 
-    // Step 5: Start Auto Scanner (every 5 minutes)
-    console.log("[STARTUP] Starting Auto Scanner...");
-    startAutoScanner(5 * 60 * 1000);
-
-    console.log("=".repeat(60));
-    console.log("  SYSTEM READY: Full Market Scan Active");
-    console.log("=".repeat(60));
+    // Step 3: System ready
+    console.log("🟢 SYSTEM READY: Live LTP + Option Chain + Signals");
 
   } catch (err) {
-    console.error("[STARTUP] Error:", err.message);
+    console.error("❌ Startup Error:", err.message);
   }
 });
 
@@ -322,13 +348,11 @@ app.listen(PORT, async () => {
 // GRACEFUL SHUTDOWN
 // ==========================================
 process.on("SIGTERM", () => {
-  console.log("[SHUTDOWN] SIGTERM received...");
-  mongoose.connection.close();
+  console.log("🛑 SIGTERM received, shutting down...");
   process.exit(0);
 });
 
 process.on("SIGINT", () => {
-  console.log("[SHUTDOWN] SIGINT received...");
-  mongoose.connection.close();
+  console.log("🛑 SIGINT received, shutting down...");
   process.exit(0);
 });

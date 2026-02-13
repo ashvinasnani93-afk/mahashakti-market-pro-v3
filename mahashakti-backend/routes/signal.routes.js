@@ -1,110 +1,85 @@
 // ==========================================
 // SIGNAL ROUTES
-// API endpoints for signal generation
+// MAHASHAKTI MARKET PRO
+// Exposes /api/signal endpoint
 // ==========================================
 
 const express = require("express");
 const router = express.Router();
 
-const { finalDecision } = require("../services/signalDecision.service");
-const { scanSymbol } = require("../services/scanner.service");
+const { buildEngineData } = require("../services/marketFeed.service");
+const { finalDecision } = require("../signalDecision.service");
+const { getLtpData } = require("../services/angel/angelApi.service");
 
-// ==========================================
-// GET /api/signal - Get signal for a symbol
-// ==========================================
-router.get("/", async (req, res) => {
+// ===============================
+// POST /api/signal
+// ===============================
+router.post("/", async (req, res) => {
   try {
-    const { symbol } = req.query;
+    const { symbol } = req.body;
 
+    // Validate input
     if (!symbol) {
       return res.status(400).json({
         status: false,
-        error: "Symbol required. Example: /api/signal?symbol=NIFTY"
+        signal: "WAIT",
+        reason: "Symbol is required",
       });
     }
 
-    const result = await scanSymbol(symbol.toUpperCase());
+    // STEP 1: Fetch LIVE market data from Angel
+    const marketData = await getLtpData(symbol);
 
-    if (!result.success) {
-      return res.status(400).json({
+    if (!marketData) {
+      return res.json({
         status: false,
-        error: result.error,
-        symbol
+        signal: "WAIT",
+        reason: "Unable to fetch market data",
       });
     }
 
-    res.json({
+    // STEP 2: Build Engine Data
+    const engineData = buildEngineData({
+      symbol: symbol,
+      ltp: marketData.ltp,
+      open: marketData.open,
+      high: marketData.high,
+      low: marketData.low,
+      volume: marketData.volume,
+    });
+
+    if (!engineData) {
+      return res.json({
+        status: false,
+        signal: "WAIT",
+        reason: "Engine data creation failed",
+      });
+    }
+
+    // STEP 3: Run Decision Engine
+    const result = finalDecision(engineData);
+
+    // STEP 4: Send Response
+    return res.json({
       status: true,
-      symbol: result.symbol,
+      symbol: symbol,
       signal: result.signal,
-      explosions: result.explosions,
-      indicators: result.indicators,
-      timestamp: result.timestamp
+      confidence: result.confidence,
+      reason: result.reason,
+      analysis: result.analysis,
+      notes: result.notes,
+      timestamp: result.timestamp,
     });
 
   } catch (err) {
-    res.status(500).json({
+    console.error("❌ Signal Route Error:", err.message);
+
+    return res.status(500).json({
       status: false,
-      error: err.message
+      signal: "WAIT",
+      error: "Signal route failed",
     });
   }
-});
-
-// ==========================================
-// POST /api/signal - Get signal from custom data
-// ==========================================
-router.post("/", (req, res) => {
-  try {
-    const data = req.body;
-
-    if (!data || !data.close) {
-      return res.status(400).json({
-        status: false,
-        error: "Request body with at least 'close' price required"
-      });
-    }
-
-    const decision = finalDecision(data);
-
-    res.json({
-      status: true,
-      ...decision
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      status: false,
-      error: err.message
-    });
-  }
-});
-
-// ==========================================
-// GET /api/signal/test - Test signal engine
-// ==========================================
-router.get("/test", (req, res) => {
-  const testData = {
-    symbol: "TEST",
-    close: 100,
-    open: 99,
-    high: 101,
-    low: 98,
-    prevClose: 98.5,
-    ema20: 99.5,
-    ema50: 98,
-    rsi: 62,
-    atr: 1.5,
-    volume: 150000,
-    avgVolume: 100000
-  };
-
-  const decision = finalDecision(testData);
-
-  res.json({
-    status: true,
-    testData,
-    decision
-  });
 });
 
 module.exports = router;
