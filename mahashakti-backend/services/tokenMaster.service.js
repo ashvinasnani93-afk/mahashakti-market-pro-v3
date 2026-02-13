@@ -161,15 +161,19 @@ async function loadSymbolMaster(force = false) {
               }
             }
 
-            // NSE CASH
-            if (exchange === "NSE" && item.instrumenttype === "EQ") {
-              symbolMaster.cashStocks[symbol] = {
-                token,
-                exchangeType: 1,
-                name: item.name,
-                isFnO: FNO_STOCKS.includes(symbol.replace("-EQ", "").replace("-BE", ""))
-              };
-              equityCount++;
+            // NSE CASH (check multiple segment names)
+            if ((exchange === "NSE" || exchange === "nse") && 
+                (item.instrumenttype === "EQ" || item.instrumenttype === "" || !item.instrumenttype)) {
+              // Only add if it has a valid token and looks like equity
+              if (item.symbol && !item.symbol.includes("NIFTY") && !item.symbol.includes("INDEX")) {
+                symbolMaster.cashStocks[symbol] = {
+                  token,
+                  exchangeType: 1,
+                  name: item.name,
+                  isFnO: FNO_STOCKS.includes(symbol.replace("-EQ", "").replace("-BE", ""))
+                };
+                equityCount++;
+              }
             }
 
             // MCX COMMODITIES
