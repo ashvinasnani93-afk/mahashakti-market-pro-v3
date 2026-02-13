@@ -4,18 +4,8 @@
 // BUY / SELL / STRONG BUY / STRONG SELL / WAIT
 // ==================================================
 
-// Safe require for safety services
-let applySafety, getVixSafetyNote;
-try {
-  applySafety = require("./signalSafety.service").applySafety;
-} catch (e) {
-  applySafety = (data) => ({ blocked: false, signal: data.signal });
-}
-try {
-  getVixSafetyNote = require("./signalVix.service").getVixSafetyNote;
-} catch (e) {
-  getVixSafetyNote = () => "VIX data unavailable";
-}
+const { applySafety } = require("./signalSafety.service");
+const { getVixSafetyNote } = require("./signalVix.service");
 
 // ==================================================
 // CARRY FIX: SAFE REQUIRE FOR OPTIONAL SCANNERS
@@ -24,25 +14,25 @@ try {
 let detectPreBreakout, detectVolumeBuildup, detectRangeCompression, evaluateMomentumContext;
 
 try {
-  ({ detectPreBreakout } = require("./preBreakout.scanner"));
+  ({ detectPreBreakout } = require("./services/preBreakout.scanner"));
 } catch (e) {
   detectPreBreakout = () => ({ active: false });
 }
 
 try {
-  ({ detectVolumeBuildup } = require("./volumeBuildup.detector"));
+  ({ detectVolumeBuildup } = require("./services/volumeBuildup.detector"));
 } catch (e) {
   detectVolumeBuildup = () => ({ active: false });
 }
 
 try {
-  ({ detectRangeCompression } = require("./rangeCompression.scanner"));
+  ({ detectRangeCompression } = require("./services/rangeCompression.scanner"));
 } catch (e) {
   detectRangeCompression = () => ({ active: false });
 }
 
 try {
-  ({ evaluateMomentumContext } = require("./momentumScanner.service"));
+  ({ evaluateMomentumContext } = require("./services/momentumScanner.service"));
 } catch (e) {
   evaluateMomentumContext = () => ({ confirmed: false });
 }

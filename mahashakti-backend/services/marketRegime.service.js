@@ -1,12 +1,24 @@
 // ==========================================
-// MARKET REGIME SERVICE
+// MARKET REGIME SERVICE (PHASE-R1)
 // Determines market state:
 // TRENDING_UP | TRENDING_DOWN | SIDEWAYS | HIGH_RISK | NO_TRADE
+// RULE-LOCKED – CORE FOUNDATION
 // ==========================================
 
-// ==========================================
-// DETECT MARKET REGIME
-// ==========================================
+/**
+ * detectMarketRegime
+ * @param {object} data
+ * @returns {object}
+ *
+ * Required:
+ * - close
+ * - prevClose
+ * - ema20
+ * - ema50
+ * - candleSizePercent
+ * - overlapPercent
+ * - vix (optional, text only)
+ */
 function detectMarketRegime(data = {}) {
   const {
     close,
@@ -15,10 +27,12 @@ function detectMarketRegime(data = {}) {
     ema50,
     candleSizePercent,
     overlapPercent,
-    vix
+    vix,
   } = data;
 
-  // Hard validation
+  // ----------------------------------
+  // HARD VALIDATION
+  // ----------------------------------
   if (
     typeof close !== "number" ||
     typeof prevClose !== "number" ||
@@ -27,81 +41,80 @@ function detectMarketRegime(data = {}) {
   ) {
     return {
       regime: "NO_TRADE",
-      reason: "Insufficient data for regime detection"
+      reason: "Insufficient data for regime detection",
     };
   }
 
-  // HIGH RISK - VIX elevated
+  // ----------------------------------
+  // HIGH RISK – VOLATILITY TRAP
+  // ----------------------------------
   if (typeof vix === "number" && vix >= 20) {
     return {
       regime: "HIGH_RISK",
-      reason: "High volatility environment (VIX elevated)"
+      reason: "High volatility environment (VIX elevated)",
     };
   }
 
-  // EMA alignment
+  // ----------------------------------
+  // EMA ALIGNMENT (TREND ENGINE)
+  // ----------------------------------
   const emaUp = close > ema20 && ema20 > ema50;
   const emaDown = close < ema20 && ema20 < ema50;
 
-  // Price speed
-  const priceChangePercent = Math.abs((close - prevClose) / prevClose) * 100;
+  // ----------------------------------
+  // PRICE SPEED CHECK
+  // ----------------------------------
+  const priceChangePercent =
+    Math.abs((close - prevClose) / prevClose) * 100;
+
   const strongMove = priceChangePercent >= 0.35;
   const slowMove = priceChangePercent < 0.15;
 
-  // SIDEWAYS detection
-  if (overlapPercent >= 60 || slowMove) {
+  // ----------------------------------
+  // SIDEWAYS / NO-TRADE DETECTION
+  // ----------------------------------
+  if (
+    overlapPercent >= 60 || // candles overlapping
+    slowMove
+  ) {
     return {
       regime: "SIDEWAYS",
-      reason: "Price overlapping / low momentum"
+      reason: "Price overlapping / low momentum",
     };
   }
 
+  // ----------------------------------
   // TRENDING UP
+  // ----------------------------------
   if (emaUp && strongMove && candleSizePercent >= 0.25) {
     return {
       regime: "TRENDING_UP",
-      reason: "Price > EMA20 > EMA50 with strong momentum"
+      reason: "Price > EMA20 > EMA50 with strong momentum",
     };
   }
 
+  // ----------------------------------
   // TRENDING DOWN
+  // ----------------------------------
   if (emaDown && strongMove && candleSizePercent >= 0.25) {
     return {
       regime: "TRENDING_DOWN",
-      reason: "Price < EMA20 < EMA50 with strong momentum"
+      reason: "Price < EMA20 < EMA50 with strong momentum",
     };
   }
 
+  // ----------------------------------
+  // DEFAULT SAFE FALLBACK
+  // ----------------------------------
   return {
     regime: "NO_TRADE",
-    reason: "Regime unclear - capital protection"
+    reason: "Regime unclear – capital protection",
   };
 }
 
 // ==========================================
-// CHECK IF REGIME ALLOWS TRADING
+// EXPORT
 // ==========================================
-function isRegimeTradeable(regime) {
-  const tradeableRegimes = ["TRENDING_UP", "TRENDING_DOWN"];
-  return tradeableRegimes.includes(regime);
-}
-
-// ==========================================
-// GET REGIME COLOR (for UI)
-// ==========================================
-function getRegimeColor(regime) {
-  const colors = {
-    TRENDING_UP: "GREEN",
-    TRENDING_DOWN: "RED",
-    SIDEWAYS: "YELLOW",
-    HIGH_RISK: "ORANGE",
-    NO_TRADE: "GRAY"
-  };
-  return colors[regime] || "GRAY";
-}
-
 module.exports = {
   detectMarketRegime,
-  isRegimeTradeable,
-  getRegimeColor
 };
