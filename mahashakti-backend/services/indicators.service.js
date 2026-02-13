@@ -1,16 +1,15 @@
 // ==========================================
-// INDICATORS SERVICE - REAL MATH CALCULATIONS
-// EMA 20, EMA 50, RSI 14, ATR 14
-// NO APPROXIMATIONS - PROPER FORMULAS
+// INDICATORS SERVICE
+// MAHASHAKTI MARKET PRO
+// Technical indicators: EMA, RSI, ATR
+// Pure JavaScript - No external libraries
 // ==========================================
 
 // ==========================================
 // EMA (Exponential Moving Average)
-// Real formula: EMA = (Close - Previous EMA) * Multiplier + Previous EMA
-// Multiplier = 2 / (Period + 1)
 // ==========================================
 function calculateEMA(closes, period) {
-  if (!closes || !Array.isArray(closes) || closes.length < period) {
+  if (!closes || closes.length < period) {
     return null;
   }
   
@@ -32,39 +31,10 @@ function calculateEMA(closes, period) {
 }
 
 // ==========================================
-// EMA SERIES (For charting/analysis)
-// ==========================================
-function calculateEMASeries(closes, period) {
-  if (!closes || !Array.isArray(closes) || closes.length < period) {
-    return [];
-  }
-  
-  const multiplier = 2 / (period + 1);
-  const series = [];
-  
-  // First value is SMA
-  let sum = 0;
-  for (let i = 0; i < period; i++) {
-    sum += closes[i];
-  }
-  let ema = sum / period;
-  series.push(ema);
-  
-  // Calculate rest
-  for (let i = period; i < closes.length; i++) {
-    ema = (closes[i] - ema) * multiplier + ema;
-    series.push(ema);
-  }
-  
-  return series;
-}
-
-// ==========================================
-// RSI (Relative Strength Index) - WILDER'S FORMULA
-// Real calculation with proper smoothing
+// RSI (Relative Strength Index)
 // ==========================================
 function calculateRSI(closes, period = 14) {
-  if (!closes || !Array.isArray(closes) || closes.length < period + 1) {
+  if (!closes || closes.length < period + 1) {
     return null;
   }
   
@@ -78,7 +48,7 @@ function calculateRSI(closes, period = 14) {
     losses.push(change < 0 ? Math.abs(change) : 0);
   }
   
-  // Calculate initial average gain and loss (first period)
+  // Calculate initial average gain and loss
   let avgGain = 0;
   let avgLoss = 0;
   
@@ -90,7 +60,7 @@ function calculateRSI(closes, period = 14) {
   avgGain = avgGain / period;
   avgLoss = avgLoss / period;
   
-  // Calculate smoothed averages (Wilder's smoothing)
+  // Calculate smoothed averages
   for (let i = period; i < gains.length; i++) {
     avgGain = (avgGain * (period - 1) + gains[i]) / period;
     avgLoss = (avgLoss * (period - 1) + losses[i]) / period;
@@ -108,8 +78,7 @@ function calculateRSI(closes, period = 14) {
 }
 
 // ==========================================
-// ATR (Average True Range) - REAL CALCULATION
-// True Range = Max(H-L, |H-PC|, |L-PC|)
+// ATR (Average True Range)
 // ==========================================
 function calculateATR(highs, lows, closes, period = 14) {
   if (!highs || !lows || !closes) {
@@ -139,7 +108,7 @@ function calculateATR(highs, lows, closes, period = 14) {
   }
   atr = atr / period;
   
-  // Calculate smoothed ATR (Wilder's smoothing)
+  // Calculate smoothed ATR
   for (let i = period; i < trueRanges.length; i++) {
     atr = (atr * (period - 1) + trueRanges[i]) / period;
   }
@@ -148,42 +117,24 @@ function calculateATR(highs, lows, closes, period = 14) {
 }
 
 // ==========================================
-// VOLUME AVERAGE (20 candle basis)
+// VOLATILITY CLASSIFICATION (ATR-Based)
 // ==========================================
-function calculateVolumeAverage(volumes, period = 20) {
-  if (!volumes || !Array.isArray(volumes) || volumes.length < period) {
-    return null;
+function classifyVolatility(atr, currentPrice) {
+  if (!atr || !currentPrice || currentPrice === 0) {
+   return "NORMAL";
   }
   
-  const recentVolumes = volumes.slice(-period);
-  const sum = recentVolumes.reduce((a, b) => a + b, 0);
+  // ATR as percentage of price
+  const atrPercent = (atr / currentPrice) * 100;
   
-  return Math.round(sum / period);
-}
-
-// ==========================================
-// CANDLE BODY PERCENTAGE
-// Body% = |Close - Open| / (High - Low) * 100
-// ==========================================
-function calculateBodyPercent(open, high, low, close) {
-  if (high === low) return 0;
-  
-  const body = Math.abs(close - open);
-  const range = high - low;
-  
-  return parseFloat(((body / range) * 100).toFixed(2));
-}
-
-// ==========================================
-// CLOSE LOCATION VALUE
-// Where close is within the range (0-100)
-// ==========================================
-function calculateCloseLocation(high, low, close) {
-  if (high === low) return 50;
-  
-  const location = ((close - low) / (high - low)) * 100;
-  
-  return parseFloat(location.toFixed(2));
+  // Classification thresholds
+  if (atrPercent >= 2.0) {
+    return "EXTREME ";
+  } else if (atrPercent >= 1.2) {
+    return "HIGH ";
+  } else {
+    return  "NORMAL ";
+  }
 }
 
 // ==========================================
@@ -195,6 +146,8 @@ function detectTrend(closes, ema20, ema50) {
   }
   
   const currentPrice = closes[closes.length - 1];
+  
+  // Calculate EMA difference as percentage
   const emaDiff = Math.abs(ema20 - ema50) / ema50;
   
   // UPTREND: Price > EMA20 > EMA50
@@ -209,11 +162,13 @@ function detectTrend(closes, ema20, ema50) {
     return { trend: "DOWNTREND", strength };
   }
   
+  // SIDEWAYS
   return { trend: "SIDEWAYS", strength: "WEAK" };
 }
 
 // ==========================================
-// HIGHER TIMEFRAME ALIGNMENT
+// HTF ALIGNMENT CHECK
+// Higher Time Frame alignment
 // ==========================================
 function checkHTFAlignment(trend, ema20, ema50, rsi) {
   if (trend === "UNKNOWN" || trend === "SIDEWAYS") {
@@ -235,6 +190,7 @@ function checkHTFAlignment(trend, ema20, ema50, rsi) {
 
 // ==========================================
 // NO TRADE ZONE DETECTION
+// EMA compression, range bound, low volume
 // ==========================================
 function detectNoTradeZone(data) {
   const { closes, highs, lows, volumes, ema20, ema50, atr } = data;
@@ -245,7 +201,8 @@ function detectNoTradeZone(data) {
   
   const reasons = [];
   
-  // 1. EMA COMPRESSION (< 0.3% difference)
+  // 1. EMA COMPRESSION CHECK
+  // When EMA20 and EMA50 are very close (< 0.3% difference)
   if (ema20 && ema50) {
     const emaDiff = Math.abs(ema20 - ema50) / ema50;
     if (emaDiff < 0.003) {
@@ -253,7 +210,8 @@ function detectNoTradeZone(data) {
     }
   }
   
-  // 2. RANGE BOUND (last 10 candles range < 0.8%)
+  // 2. RANGE BOUND CHECK
+  // Price oscillating within tight range (last 10 candles)
   if (highs && lows && highs.length >= 10 && lows.length >= 10) {
     const recentHighs = highs.slice(-10);
     const recentLows = lows.slice(-10);
@@ -262,12 +220,14 @@ function detectNoTradeZone(data) {
     const rangeLow = Math.min(...recentLows);
     const rangePercent = ((rangeHigh - rangeLow) / rangeLow) * 100;
     
+    // If range is less than 0.8%, consider it range bound
     if (rangePercent < 0.8) {
       reasons.push("RANGE_BOUND");
     }
   }
   
   // 3. LOW VOLUME TRAP
+  // Volume declining over last 5 candles
   if (volumes && volumes.length >= 10) {
     const recentVolumes = volumes.slice(-5);
     const prevVolumes = volumes.slice(-10, -5);
@@ -275,12 +235,14 @@ function detectNoTradeZone(data) {
     const recentAvg = recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length;
     const prevAvg = prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length;
     
+    // If recent volume is 30% less than previous
     if (recentAvg < prevAvg * 0.7) {
       reasons.push("LOW_VOLUME_TRAP");
     }
   }
   
   // 4. ATR CONTRACTION
+  // Very low ATR indicates low volatility / indecision
   if (atr && closes.length > 0) {
     const currentPrice = closes[closes.length - 1];
     const atrPercent = (atr / currentPrice) * 100;
@@ -301,22 +263,73 @@ function detectNoTradeZone(data) {
 }
 
 // ==========================================
-// VOLATILITY CLASSIFICATION
+// CONFIDENCE CALCULATOR
+// Based on multiple confluence factors
 // ==========================================
-function classifyVolatility(atr, currentPrice) {
-  if (!atr || !currentPrice || currentPrice === 0) {
-    return "NORMAL";
+function calculateConfidence(data) {
+  const { trend, trendStrength, htfAligned, volumeConfirmed, breakout, rsi } = data;
+  
+  let score = 0;
+  
+  // Trend strength
+  if (trendStrength === "STRONG") {
+    score += 3;
+  } else if (trendStrength === "MODERATE") {
+    score += 2;
   }
   
-  const atrPercent = (atr / currentPrice) * 100;
+  // HTF alignment
+  if (htfAligned) {
+    score += 2;
+  }
   
-  if (atrPercent >= 2.0) {
-    return "EXTREME";
-  } else if (atrPercent >= 1.2) {
+  // Volume confirmation
+  if (volumeConfirmed) {
+    score += 2;
+  }
+  
+  // Breakout
+  if (breakout) {
+    score += 2;
+  }
+  
+  // RSI in favorable zone
+  if (trend === "UPTREND" && rsi >= 50 && rsi <= 70) {
+    score += 1;
+  } else if (trend === "DOWNTREND" && rsi <= 50 && rsi >= 30) {
+    score += 1;
+  }
+  
+  // Confidence level
+  if (score >= 8) {
     return "HIGH";
+  } else if (score >= 5) {
+    return "MEDIUM";
+  } else {
+    return "LOW";
+  }
+}
+
+// ==========================================
+// VOLUME CONFIRMATION
+// ==========================================
+function checkVolumeConfirmation(volumes) {
+  if (!volumes || volumes.length < 10) {
+    return false;
   }
   
-  return "NORMAL";
+  const recentVolumes = volumes.slice(-5);
+  const prevVolumes = volumes.slice(-20, -5);
+  
+  if (prevVolumes.length === 0) {
+    return false;
+  }
+  
+  const recentAvg = recentVolumes.reduce((a, b) => a + b, 0) / recentVolumes.length;
+  const prevAvg = prevVolumes.reduce((a, b) => a + b, 0) / prevVolumes.length;
+  
+  // Volume should be at least 10% above average
+  return recentAvg > prevAvg * 1.1;
 }
 
 // ==========================================
@@ -342,19 +355,19 @@ function detectBreakout(closes, highs, lows) {
   
   // Bullish breakout
   if (currentPrice > rangeHigh) {
-    return { breakout: true, type: "BULLISH", level: rangeHigh };
+    return { breakout: true, type: "BULLISH" };
   }
   
   // Bearish breakdown
   if (currentPrice < rangeLow) {
-    return { breakout: true, type: "BEARISH", level: rangeLow };
+    return { breakout: true, type: "BEARISH" };
   }
   
   return { breakout: false, type: null };
 }
 
 // ==========================================
-// CALCULATE ALL INDICATORS
+// MAIN INDICATOR CALCULATION
 // ==========================================
 function calculateAllIndicators(ohlcv) {
   const { opens, highs, lows, closes, volumes } = ohlcv;
@@ -362,61 +375,55 @@ function calculateAllIndicators(ohlcv) {
   if (!closes || closes.length < 50) {
     return {
       success: false,
-      error: "Insufficient candle data (need 50+)",
+      error: "Insufficient candle data",
       indicators: null
     };
   }
   
-  // Calculate core indicators
+  // Calculate indicators
   const ema20 = calculateEMA(closes, 20);
   const ema50 = calculateEMA(closes, 50);
   const rsi = calculateRSI(closes, 14);
   const atr = calculateATR(highs, lows, closes, 14);
-  const avgVolume = calculateVolumeAverage(volumes, 20);
   
-  // Current values
+  // Get current price
   const currentPrice = closes[closes.length - 1];
-  const currentVolume = volumes[volumes.length - 1];
-  const latestCandle = {
-    open: opens[opens.length - 1],
-    high: highs[highs.length - 1],
-    low: lows[lows.length - 1],
-    close: closes[closes.length - 1]
-  };
-  
-  // Candle analysis
-  const bodyPercent = calculateBodyPercent(
-    latestCandle.open,
-    latestCandle.high,
-    latestCandle.low,
-    latestCandle.close
-  );
-  const closeLocation = calculateCloseLocation(
-    latestCandle.high,
-    latestCandle.low,
-    latestCandle.close
-  );
   
   // Trend detection
   const trendResult = detectTrend(closes, ema20, ema50);
+  
+  // Volatility classification
+  const volatility = classifyVolatility(atr, currentPrice);
   
   // HTF alignment
   const htfAligned = checkHTFAlignment(trendResult.trend, ema20, ema50, rsi);
   
   // Volume confirmation
-  const volumeRatio = avgVolume > 0 ? currentVolume / avgVolume : 0;
-  const volumeConfirmed = volumeRatio >= 1.5;
+  const volumeConfirmed = checkVolumeConfirmation(volumes);
   
   // Breakout detection
   const breakoutResult = detectBreakout(closes, highs, lows);
   
-  // No trade zone
+  // No trade zone detection
   const noTradeResult = detectNoTradeZone({
-    closes, highs, lows, volumes, ema20, ema50, atr
+    closes,
+    highs,
+    lows,
+    volumes,
+    ema20,
+    ema50,
+    atr
   });
   
-  // Volatility
-  const volatility = classifyVolatility(atr, currentPrice);
+  // Confidence calculation
+  const confidence = calculateConfidence({
+    trend: trendResult.trend,
+    trendStrength: trendResult.strength,
+    htfAligned,
+    volumeConfirmed,
+    breakout: breakoutResult.breakout,
+    rsi
+  });
   
   return {
     success: true,
@@ -425,38 +432,35 @@ function calculateAllIndicators(ohlcv) {
       ema50,
       rsi,
       atr,
-      avgVolume,
       currentPrice,
-      currentVolume,
-      volumeRatio: parseFloat(volumeRatio.toFixed(2)),
-      bodyPercent,
-      closeLocation,
       trend: trendResult.trend,
       trendStrength: trendResult.strength,
+      volatility,
       htfAligned,
       volumeConfirmed,
       breakout: breakoutResult.breakout,
       breakoutType: breakoutResult.type,
-      breakoutLevel: breakoutResult.level,
       noTradeZone: noTradeResult.noTradeZone,
       noTradeReasons: noTradeResult.reasons,
-      volatility
+      confidence
     }
   };
 }
 
+// ==========================================
+// EXPORTS
+// ==========================================
 module.exports = {
   calculateEMA,
-  calculateEMASeries,
   calculateRSI,
   calculateATR,
-  calculateVolumeAverage,
-  calculateBodyPercent,
-  calculateCloseLocation,
+  classifyVolatility,
   detectTrend,
   checkHTFAlignment,
   detectNoTradeZone,
-  classifyVolatility,
+  calculateConfidence,
+  checkVolumeConfirmation,
   detectBreakout,
   calculateAllIndicators
 };
+

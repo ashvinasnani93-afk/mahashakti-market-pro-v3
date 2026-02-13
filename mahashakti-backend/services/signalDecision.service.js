@@ -1,12 +1,11 @@
 // ==================================================
 // SIGNAL DECISION SERVICE – FINAL (ALL CARRIES FIXED)
-// MAHASHAKTI MARKET PRO - ENHANCED
+// MAHASHAKTI MARKET PRO
 // BUY / SELL / STRONG BUY / STRONG SELL / WAIT
 // ==================================================
 
-const { applySafety, getVixSafetyNote } = require("./safetyLayer.service");
-const { calculateRiskReward, getSignalGrade } = require("./riskReward.service");
-const { detectMarketRegime, isRegimeTradeable } = require("./marketRegime.service");
+const { applySafety } = require("./signalSafety.service");
+const { getVixSafetyNote } = require("./signalVix.service");
 
 // ==================================================
 // CARRY FIX: SAFE REQUIRE FOR OPTIONAL SCANNERS
@@ -15,27 +14,27 @@ const { detectMarketRegime, isRegimeTradeable } = require("./marketRegime.servic
 let detectPreBreakout, detectVolumeBuildup, detectRangeCompression, evaluateMomentumContext;
 
 try {
-  detectPreBreakout = require("./preBreakout.scanner").detectPreBreakout;
+  ({ detectPreBreakout } = require("./services/preBreakout.scanner"));
 } catch (e) {
-  detectPreBreakout = (data) => ({ active: false, preBreakout: false });
+  detectPreBreakout = () => ({ active: false });
 }
 
 try {
-  detectVolumeBuildup = require("./volumeBuildup.detector").detectVolumeBuildup;
+  ({ detectVolumeBuildup } = require("./services/volumeBuildup.detector"));
 } catch (e) {
-  detectVolumeBuildup = (data) => ({ active: false, buildupDetected: false });
+  detectVolumeBuildup = () => ({ active: false });
 }
 
 try {
-  detectRangeCompression = require("./rangeCompression.scanner").detectRangeCompression;
+  ({ detectRangeCompression } = require("./services/rangeCompression.scanner"));
 } catch (e) {
-  detectRangeCompression = (data) => ({ active: false, compressed: false });
+  detectRangeCompression = () => ({ active: false });
 }
 
 try {
-  evaluateMomentumContext = require("./momentumScanner.service").evaluateMomentumContext;
+  ({ evaluateMomentumContext } = require("./services/momentumScanner.service"));
 } catch (e) {
-  evaluateMomentumContext = (data) => ({ confirmed: false });
+  evaluateMomentumContext = () => ({ confirmed: false });
 }
 
 // ==================================================
@@ -69,7 +68,7 @@ function checkTrendSoft(data) {
   const ema50 = normalizeValue(data.ema50);
 
   if (!close || !ema20 || !ema50) {
-    return { trend: "UNKNOWN", strength: "WEAK" };
+    return { trend: "UNKNOWN", strength: "WEAK" }; // FIX: था 0, अब "WEAK"
   }
 
   // UPTREND: Price above EMA20 and EMA20 trending above EMA50
@@ -196,16 +195,6 @@ function checkVolumeSoft(data) {
 
   const ratio = volume / avgVolume;
 
-  // Very Strong volume spike
-  if (ratio >= 2.0) {
-    return { 
-      confirmed: true, 
-      level: "VERY_STRONG",
-      ratio: ratio.toFixed(2),
-      note: "Very high volume confirmation"
-    };
-  }
-
   // Strong volume spike
   if (ratio >= 1.5) {
     return { 
@@ -263,7 +252,6 @@ function checkCandleStrength(data) {
   if (bodyPercent > 60 && changePercent > 0.5) {
     return { 
       strength: "STRONG", 
-      bodyPercent: bodyPercent.toFixed(2),
       changePercent: changePercent.toFixed(2),
       note: "Strong candle movement"
     };
@@ -273,7 +261,6 @@ function checkCandleStrength(data) {
   if (bodyPercent > 40) {
     return { 
       strength: "MODERATE",
-      bodyPercent: bodyPercent.toFixed(2),
       changePercent: changePercent.toFixed(2),
       note: "Moderate candle"
     };
@@ -282,98 +269,8 @@ function checkCandleStrength(data) {
   // Weak candle
   return { 
     strength: "WEAK",
-    bodyPercent: bodyPercent.toFixed(2),
     changePercent: changePercent.toFixed(2),
     note: "Weak candle - indecision"
-  };
-}
-
-// ==================================================
-// HTF ALIGNMENT CHECK (NEW)
-// Higher Timeframe alignment
-// ==================================================
-function checkHTFAlignment(data) {
-  const { htf15m, htf1h, htfDaily, trend } = data;
-  
-  let alignedCount = 0;
-  let direction = null;
-  const alignments = {};
-  
-  // Check 15m
-  if (htf15m && htf15m.trend === trend) {
-    alignedCount++;
-    alignments["15m"] = true;
-  }
-  
-  // Check 1h
-  if (htf1h && htf1h.trend === trend) {
-    alignedCount++;
-    alignments["1h"] = true;
-  }
-  
-  // Check Daily
-  if (htfDaily && htfDaily.trend === trend) {
-    alignedCount++;
-    alignments["daily"] = true;
-  }
-  
-  return {
-    aligned: alignedCount >= 2,
-    count: alignedCount,
-    direction: trend,
-    alignments
-  };
-}
-
-// ==================================================
-// INSTITUTIONAL LAYER CHECK (NEW)
-// OI, PCR, Breadth analysis
-// ==================================================
-function checkInstitutionalLayer(data) {
-  const { oi, oiChange, pcr, breadth, fiiData } = data;
-  
-  let score = 0;
-  const signals = [];
-  
-  // OI Analysis
-  if (oiChange) {
-    if (oiChange > 10) {
-      score += 2;
-      signals.push("OI_BUILDUP");
-    } else if (oiChange < -10) {
-      score += 1;
-      signals.push("OI_UNWINDING");
-    }
-  }
-  
-  // PCR Analysis
-  if (pcr) {
-    if (pcr > 1.2) {
-      score += 2;
-      signals.push("BULLISH_PCR");
-    } else if (pcr < 0.8) {
-      score += 2;
-      signals.push("BEARISH_PCR");
-    }
-  }
-  
-  // Market Breadth
-  if (breadth) {
-    if (breadth.advanceDeclineRatio > 2) {
-      score += 2;
-      signals.push("STRONG_BREADTH");
-    } else if (breadth.advanceDeclineRatio < 0.5) {
-      score += 2;
-      signals.push("WEAK_BREADTH");
-    }
-  }
-  
-  return {
-    active: score >= 3,
-    score,
-    signals,
-    bullish: signals.includes("BULLISH_PCR") || signals.includes("STRONG_BREADTH"),
-    bearish: signals.includes("BEARISH_PCR") || signals.includes("WEAK_BREADTH")
   };
 }
 
@@ -408,31 +305,27 @@ function finalDecision(data = {}) {
       ema20: normalizeValue(data.ema20),
       ema50: normalizeValue(data.ema50),
       rsi: normalizeValue(data.rsi),
-      atr: normalizeValue(data.atr),
       volume: normalizeValue(data.volume),
       avgVolume: normalizeValue(data.avgVolume),
-      rangeHigh: normalizeValue(data.rangeHigh),
-      rangeLow: normalizeValue(data.rangeLow),
+      rangeHigh: normalizeValue(data.rangeHigh),   // FIX: Added
+      rangeLow: normalizeValue(data.rangeLow),     // FIX: Added
       support: normalizeValue(data.support),
       resistance: normalizeValue(data.resistance),
       vix: normalizeValue(data.vix),
-      oi: normalizeValue(data.oi),
-      oiChange: normalizeValue(data.oiChange),
-      pcr: normalizeValue(data.pcr),
       closes: normalizeArray(data.closes),
       highs: normalizeArray(data.highs),
       lows: normalizeArray(data.lows),
-      volumes: normalizeArray(data.volumes),
+      volumes: normalizeArray(data.volumes),       // FIX: Added
     };
 
     // =====================================
     // STEP 3: MINIMUM DATA CHECK
     // =====================================
     if (
-      normalizedData.close == null ||
-      normalizedData.ema20 == null ||
-      normalizedData.ema50 == null
-    ) {
+  normalizedData.close == null ||
+  normalizedData.ema20 == null ||
+  normalizedData.ema50 == null
+) {
       return {
         signal: "WAIT",
         reason: "Insufficient price or EMA data",
@@ -456,19 +349,10 @@ function finalDecision(data = {}) {
     // EARLY + INSTITUTIONAL SCANNERS
     // FIX: Now called AFTER trend is set
     // ===============================
-    const preBreakout = detectPreBreakout({
-      close: normalizedData.close,
-      high: normalizedData.high,
-      low: normalizedData.low,
-      highs: normalizedData.highs,
-      lows: normalizedData.lows,
-      volumes: normalizedData.volumes,
-      avgVolume: normalizedData.avgVolume,
-      resistance: normalizedData.resistance
-    });
+    const preBreakout = detectPreBreakout(normalizedData);
 
     const volumeBuildup = detectVolumeBuildup({
-      volumes: normalizedData.volumes,
+      volumes: normalizedData.volumes,             // FIX: Now properly normalized
       avgVolume: normalizedData.avgVolume,
       closes: normalizedData.closes
     });
@@ -480,38 +364,11 @@ function finalDecision(data = {}) {
     });
 
     const momentum = evaluateMomentumContext({
-      trend: normalizedData.trend,
+      trend: normalizedData.trend,                 // FIX: Now has correct value
       rsi: normalizedData.rsi,
       volume: normalizedData.volume,
       avgVolume: normalizedData.avgVolume,
-      breakoutAction: normalizedData.trend === "UPTREND" ? "BUY" : "SELL"
-    });
-
-    // HTF Alignment
-    const htfAlignment = checkHTFAlignment({
-      trend: normalizedData.trend,
-      htf15m: data.htf15m,
-      htf1h: data.htf1h,
-      htfDaily: data.htfDaily
-    });
-
-    // Institutional Layer
-    const institutional = checkInstitutionalLayer({
-      oi: normalizedData.oi,
-      oiChange: normalizedData.oiChange,
-      pcr: normalizedData.pcr,
-      breadth: data.breadth,
-      fiiData: data.fiiData
-    });
-
-    // Market Regime
-    const regime = detectMarketRegime({
-      close: normalizedData.close,
-      prevClose: normalizedData.prevClose,
-      ema20: normalizedData.ema20,
-      ema50: normalizedData.ema50,
-      candleSizePercent: parseFloat(candleCheck.changePercent) || 0,
-      vix: normalizedData.vix
+      breakoutAction: normalizedData.trend === "UPTREND" ? "BUY" : "SELL"  // FIX: था "UP", अब "UPTREND"
     });
 
     // =====================================
@@ -525,19 +382,19 @@ function finalDecision(data = {}) {
     // ================================
 
     // Pre-breakout = early strength
-    if (preBreakout && (preBreakout.active === true || preBreakout.preBreakout === true)) {
+    if (preBreakout && preBreakout.active === true) {
       if (normalizedData.trend === "UPTREND") bullScore += 2;
       if (normalizedData.trend === "DOWNTREND") bearScore += 2;
     }
 
     // Volume buildup = quality move
-    if (volumeBuildup && (volumeBuildup.active === true || volumeBuildup.buildupDetected === true)) {
+    if (volumeBuildup && volumeBuildup.active === true) {
       if (normalizedData.trend === "UPTREND") bullScore += 2;
       if (normalizedData.trend === "DOWNTREND") bearScore += 2;
     }
 
     // Compression = explosive potential
-    if (compression && (compression.active === true || compression.compressed === true)) {
+    if (compression && compression.active === true) {
       if (normalizedData.trend === "UPTREND") bullScore += 2;
       if (normalizedData.trend === "DOWNTREND") bearScore += 2;
     }
@@ -547,22 +404,6 @@ function finalDecision(data = {}) {
       if (normalizedData.trend === "UPTREND") bullScore += 3;
       if (normalizedData.trend === "DOWNTREND") bearScore += 3;
     }
-
-    // HTF Alignment bonus
-    if (htfAlignment.aligned) {
-      if (normalizedData.trend === "UPTREND") bullScore += 2;
-      if (normalizedData.trend === "DOWNTREND") bearScore += 2;
-    }
-
-    // Institutional layer bonus
-    if (institutional.active) {
-      if (institutional.bullish) bullScore += 2;
-      if (institutional.bearish) bearScore += 2;
-    }
-
-    // Regime bonus
-    if (regime.regime === "TRENDING_UP") bullScore += 2;
-    if (regime.regime === "TRENDING_DOWN") bearScore += 2;
 
     // Trend Score (Most Important)
     if (trendCheck.trend === "UPTREND") {
@@ -579,7 +420,7 @@ function finalDecision(data = {}) {
 
     // Volume Score
     if (volumeCheck.confirmed) {
-      const points = volumeCheck.level === "VERY_STRONG" ? 3 : volumeCheck.level === "STRONG" ? 2 : 1;
+      const points = volumeCheck.level === "STRONG" ? 2 : 1;
       if (normalizedData.trend === "UPTREND") bullScore += points;
       if (normalizedData.trend === "DOWNTREND") bearScore += points;
     }
@@ -588,9 +429,6 @@ function finalDecision(data = {}) {
     if (breakoutCheck.breakout) {
       if (breakoutCheck.type === "BULLISH_BREAKOUT") bullScore += 2;
       if (breakoutCheck.type === "BEARISH_BREAKDOWN") bearScore += 2;
-    } else if (breakoutCheck.soft) {
-      if (breakoutCheck.type === "BULLISH_BREAKOUT") bullScore += 1;
-      if (breakoutCheck.type === "BEARISH_BREAKDOWN") bearScore += 1;
     }
 
     // Candle Score
@@ -598,42 +436,41 @@ function finalDecision(data = {}) {
       if (normalizedData.trend === "UPTREND") bullScore += 1;
       if (normalizedData.trend === "DOWNTREND") bearScore += 1;
     }
+    
+// =====================================
+// CARRY-3: WAIT TRAP GUARD
+// =====================================
+const weakContext =
+  trendCheck.trend === "SIDEWAYS" &&
+  !volumeCheck.confirmed &&
+  !breakoutCheck.breakout &&
+  candleCheck.strength === "WEAK";
 
-    // =====================================
-    // CARRY-3: WAIT TRAP GUARD
-    // =====================================
-    const weakContext =
-      trendCheck.trend === "SIDEWAYS" &&
-      !volumeCheck.confirmed &&
-      !breakoutCheck.breakout &&
-      candleCheck.strength === "WEAK";
+const missingCoreData =
+  !normalizedData.close ||
+  !normalizedData.ema20 ||
+  !normalizedData.ema50 ||
+  typeof normalizedData.rsi !== "number";
 
-    const missingCoreData =
-      !normalizedData.close ||
-      !normalizedData.ema20 ||
-      !normalizedData.ema50 ||
-      typeof normalizedData.rsi !== "number";
+if (missingCoreData) {
+  return {
+    signal: "WAIT",
+    confidence: "NONE",
+    reason: "Core market data missing",
+    symbol: normalizedData.symbol,
+    timestamp: new Date().toISOString()
+  };
+}
 
-    if (missingCoreData) {
-      return {
-        signal: "WAIT",
-        confidence: "NONE",
-        reason: "Core market data missing",
-        symbol: normalizedData.symbol,
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    if (weakContext) {
-      return {
-        signal: "WAIT",
-        confidence: "LOW",
-        reason: "No trend, no volume, no breakout — market undecided",
-        symbol: normalizedData.symbol,
-        timestamp: new Date().toISOString()
-      };
-    }
-
+if (weakContext) {
+  return {
+    signal: "WAIT",
+    confidence: "LOW",
+    reason: "No trend, no volume, no breakout — market undecided",
+    symbol: normalizedData.symbol,
+    timestamp: new Date().toISOString()
+  };
+}
     // =====================================
     // STEP 6: DECISION LOGIC
     // =====================================
@@ -643,8 +480,7 @@ function finalDecision(data = {}) {
 
     // STRONG BUY (Score >= 6, with breakout)
     if (
-      bullScore >= 8 ||
-      (bullScore >= 6 && breakoutCheck.breakout) ||
+      bullScore >= 6 ||
       (bullScore >= 5 && breakoutCheck.soft && breakoutCheck.type === "BULLISH_BREAKOUT")
     ) {
       signal = "STRONG_BUY";
@@ -658,13 +494,12 @@ function finalDecision(data = {}) {
       volumeCheck.confirmed
     ) {
       signal = "BUY";
-      confidence = bullScore >= 5 ? "HIGH" : "MEDIUM";
+      confidence = bullScore >= 4 ? "HIGH" : "MEDIUM";
       reason = `Trend + RSI + Volume aligned (Score: ${bullScore})`;
     }
     // STRONG SELL (Score >= 6, with breakdown)
     else if (
-      bearScore >= 8 ||
-      (bearScore >= 6 && breakoutCheck.breakout) ||
+      bearScore >= 6 ||
       (bearScore >= 5 && breakoutCheck.soft && breakoutCheck.type === "BEARISH_BREAKDOWN")
     ) {
       signal = "STRONG_SELL";
@@ -678,7 +513,7 @@ function finalDecision(data = {}) {
       volumeCheck.confirmed
     ) {
       signal = "SELL";
-      confidence = bearScore >= 5 ? "HIGH" : "MEDIUM";
+      confidence = bearScore >= 4 ? "HIGH" : "MEDIUM";
       reason = `Trend + RSI + Volume aligned (Score: ${bearScore})`;
     }
     // WAIT (No clear direction)
@@ -686,39 +521,6 @@ function finalDecision(data = {}) {
       signal = "WAIT";
       confidence = "LOW";
       reason = `Trend weak or conflicting signals (Bull: ${bullScore}, Bear: ${bearScore})`;
-    }
-
-    // =====================================
-    // STEP 6.5: RISK REWARD VALIDATION
-    // =====================================
-    let rrResult = null;
-    if (signal !== "WAIT" && normalizedData.atr && normalizedData.close) {
-      const entry = normalizedData.close;
-      const atr = normalizedData.atr;
-      
-      if (signal === "BUY" || signal === "STRONG_BUY") {
-        const target = entry + (atr * 2);
-        const stopLoss = entry - atr;
-        rrResult = calculateRiskReward(entry, target, stopLoss);
-      } else {
-        const target = entry - (atr * 2);
-        const stopLoss = entry + atr;
-        rrResult = calculateRiskReward(entry, target, stopLoss);
-      }
-
-      // Reject if R:R < 1.2
-      if (rrResult && !rrResult.acceptable) {
-        const originalSignal = signal;
-        signal = "WAIT";
-        reason = `R:R ratio ${rrResult.ratio} below minimum 1.2 (was ${originalSignal})`;
-        confidence = "BLOCKED";
-      }
-
-      // Upgrade to STRONG if R:R >= 2
-      if (rrResult && rrResult.ratio >= 2 && signal !== "WAIT") {
-        if (signal === "BUY") signal = "STRONG_BUY";
-        if (signal === "SELL") signal = "STRONG_SELL";
-      }
     }
 
     // =====================================
@@ -735,8 +537,8 @@ function finalDecision(data = {}) {
     const safeSignal = applySafety({ signal }, safetyContext);
 
     // If safety blocked the signal
-    if (safeSignal.blocked && signal !== "WAIT") {
-      reason = `Trade blocked by safety: ${safeSignal.blockedReasons?.join(", ") || "unknown"}`;
+    if (safeSignal.signal === "WAIT" && signal !== "WAIT") {
+      reason = "Trade blocked by safety rules";
       confidence = "BLOCKED";
     }
 
@@ -749,10 +551,9 @@ function finalDecision(data = {}) {
     // STEP 9: FINAL RESPONSE
     // =====================================
     return {
-      signal: safeSignal.blocked ? "WAIT" : signal,
+      signal: safeSignal.signal,
       confidence,
       reason,
-      actionable: signal !== "WAIT" && !safeSignal.blocked,
 
       // Detailed breakdown
       analysis: {
@@ -761,32 +562,16 @@ function finalDecision(data = {}) {
         breakout: breakoutCheck,
         volume: volumeCheck,
         candle: candleCheck,
-        preBreakout: preBreakout,
-        volumeBuildup: volumeBuildup,
-        compression: compression,
-        momentum: momentum,
-        htfAlignment: htfAlignment,
-        institutional: institutional,
-        regime: regime,
         scores: {
           bullish: bullScore,
           bearish: bearScore,
         },
       },
 
-      // Targets (if available)
-      targets: rrResult ? {
-        entry: normalizedData.close,
-        target: rrResult.target,
-        stopLoss: rrResult.stopLoss,
-        riskReward: rrResult.ratio
-      } : null,
-
       // Context notes
       notes: {
         vix: vixNote,
         safety: safetyContext,
-        warnings: safeSignal.warnings || []
       },
 
       // Metadata
@@ -795,14 +580,13 @@ function finalDecision(data = {}) {
     };
 
   } catch (error) {
-    console.error("[SIGNAL] finalDecision Error:", error.message);
+    console.error("❌ finalDecision Error:", error.message);
     
     return {
       signal: "WAIT",
       reason: "System error in decision engine",
       confidence: "ERROR",
       error: error.message,
-      actionable: false
     };
   }
 }
@@ -822,41 +606,9 @@ function getFinalMarketSignal(dataInput) {
 }
 
 // ==================================================
-// PROCESS MULTIPLE STOCKS (For Scanner)
-// Returns only actionable signals
-// ==================================================
-function processMultipleStocks(stocksData) {
-  const results = [];
-  
-  for (const stock of stocksData) {
-    const decision = finalDecision(stock);
-    if (decision.actionable) {
-      results.push(decision);
-    }
-  }
-  
-  // Sort by confidence
-  results.sort((a, b) => {
-    const order = { VERY_HIGH: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-    return (order[b.confidence] || 0) - (order[a.confidence] || 0);
-  });
-  
-  return results;
-}
-
-// ==================================================
 // EXPORTS
 // ==================================================
 module.exports = {
-  finalDecision,
-  getFinalMarketSignal,
-  processMultipleStocks,
-  // Export individual checks for testing
-  checkTrendSoft,
-  checkRSISoft,
-  checkVolumeSoft,
-  checkBreakoutSoft,
-  checkCandleStrength,
-  checkHTFAlignment,
-  checkInstitutionalLayer
+  finalDecision,           // Main export (NEW - FIXED)
+  getFinalMarketSignal,    // Legacy support
 };

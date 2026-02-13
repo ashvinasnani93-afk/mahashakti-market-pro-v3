@@ -1,41 +1,69 @@
 // ==========================================
-// ANGEL CANDLES SERVICE - HISTORICAL DATA
-// Multi-timeframe candle fetching
-// 1m, 5m, 15m, 1h, Daily
+// ANGEL CANDLES SERVICE - DOCUMENTATION COMPLIANT
+// Angel One SmartAPI Historical Candle API
+// Strictly as per official documentation
 // ==========================================
 
 const axios = require("axios");
-const { BASE_URL, ENDPOINTS, HEADERS, TIMEOUT, VALID_INTERVALS, HISTORICAL_TOKENS } = require("../../config/angel.config");
 
 // ==========================================
-// GET HEADERS
+// ANGEL API BASE URL
 // ==========================================
-function getHeaders() {
-  const session = global.angelSession || {};
-  
-  if (!session.jwtToken || !session.apiKey) {
-    console.error("[CANDLES] Missing session tokens");
-    return null;
+const BASE_URL = "https://apiconnect.angelone.in";
+
+// ==========================================
+// VALID INTERVAL ENUM VALUES
+// As per Angel One SmartAPI Documentation
+// ==========================================
+const VALID_INTERVALS = {
+  "ONE_MINUTE": { maxDays: 30 },
+  "THREE_MINUTE": { maxDays: 60 },
+  "FIVE_MINUTE": { maxDays: 90 },
+  "TEN_MINUTE": { maxDays: 90 },
+  "FIFTEEN_MINUTE": { maxDays: 180 },
+  "ONE_DAY": { maxDays: 365 }
+};
+
+// ==========================================
+// INDEX SYMBOL TOKENS (From Angel Master)
+// Format: { exchange, symboltoken, name }
+// ==========================================
+const INDEX_TOKENS = {
+  "NIFTY": { 
+    exchange: "NSE", 
+    symboltoken: "99926000",
+    name: "Nifty 50"
+  },
+  "BANKNIFTY": { 
+    exchange: "NSE", 
+    symboltoken: "99926009",
+    name: "Nifty Bank"
+  },
+  "FINNIFTY": { 
+    exchange: "NSE", 
+    symboltoken: "99926037",
+    name: "Nifty Fin Service"
+  },
+  "MIDCPNIFTY": { 
+    exchange: "NSE", 
+    symboltoken: "99926074",
+    name: "NIFTY MID SELECT"
+  },
+  "SENSEX": {
+    exchange: "BSE",
+    symboltoken: "99919000",
+    name: "SENSEX"
   }
-  
-  return {
-    "Authorization": `Bearer ${session.jwtToken}`,
-    "Content-Type": HEADERS.CONTENT_TYPE,
-    "Accept": HEADERS.ACCEPT,
-    "X-UserType": HEADERS.USER_TYPE,
-    "X-SourceID": HEADERS.SOURCE_ID,
-    "X-ClientLocalIP": HEADERS.CLIENT_LOCAL_IP,
-    "X-ClientPublicIP": HEADERS.CLIENT_PUBLIC_IP,
-    "X-MACAddress": HEADERS.MAC_ADDRESS,
-    "X-PrivateKey": session.apiKey
-  };
-}
+};
 
 // ==========================================
-// FORMAT DATE - IST Timezone
+// FORMAT DATE - IST Timezone Required
+// Angel API expects dates in Indian Standard Time
+// Format: "YYYY-MM-DD HH:MM"
 // ==========================================
 function formatDate(date) {
-  const istOffset = 5.5 * 60 * 60 * 1000;
+  // Convert to IST (UTC+5:30)
+  const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
   const istDate = new Date(date.getTime() + istOffset);
   
   const year = istDate.getUTCFullYear();
@@ -48,82 +76,157 @@ function formatDate(date) {
 }
 
 // ==========================================
+// GET HEADERS - As per SmartAPI Spec
+// ==========================================
+function getHeaders() {
+  const session = global.angelSession || {};
+  
+  if (!session.jwtToken || !session.apiKey) {
+    console.error("[CANDLES] ❌ Missing session tokens");
+    return null;
+  }
+  
+  return {
+    "Authorization": `Bearer ${session.jwtToken}`,
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "X-UserType": "USER",
+    "X-SourceID": "WEB",
+    "X-ClientLocalIP": "127.0.0.1",
+    "X-ClientPublicIP": "106.51.71.158",
+    "X-MACAddress": "00:00:00:00:00:00",
+    "X-PrivateKey": session.apiKey
+  };
+}
+
+// ==========================================
 // GET INDEX INFO
 // ==========================================
 function getIndexInfo(symbol) {
   const upperSymbol = symbol.toUpperCase().replace(/\s+/g, "");
   
-  if (HISTORICAL_TOKENS[upperSymbol]) {
-    return HISTORICAL_TOKENS[upperSymbol];
+  // Direct match
+  if (INDEX_TOKENS[upperSymbol]) {
+    return INDEX_TOKENS[upperSymbol];
   }
   
-  // Partial match
-  for (const [key, value] of Object.entries(HISTORICAL_TOKENS)) {
+  // Partial match for variations
+  for (const [key, value] of Object.entries(INDEX_TOKENS)) {
     if (upperSymbol.includes(key) || key.includes(upperSymbol)) {
       return value;
     }
   }
   
+  console.error(`[CANDLES] ❌ Unknown index symbol: ${symbol}`);
   return null;
 }
 
 // ==========================================
-// FETCH CANDLES
+// FETCH HISTORICAL CANDLES
+// Strictly as per Angel One SmartAPI Documentation
 // ==========================================
 async function fetchCandles(symbol, interval = "FIVE_MINUTE", count = 100) {
   const startTime = Date.now();
   
+  console.log(`[CANDLES] ========================================`);
+  console.log(`[CANDLES] Fetching candles for: ${symbol}`);
+  console.log(`[CANDLES] Interval: ${interval}`);
+  console.log(`[CANDLES] Count requested: ${count}`);
+  
   try {
+    // =====================================
+    // STEP 1: Validate Session
+    // =====================================
     const headers = getHeaders();
     if (!headers) {
-      return { success: false, error: "Session not available", candles: [] };
-    }
-    
-    // Validate interval
-    if (!VALID_INTERVALS[interval]) {
       return {
         success: false,
-        error: `Invalid interval: ${interval}. Valid: ${Object.keys(VALID_INTERVALS).join(", ")}`,
+        error: "Angel session missing or expired",
         candles: []
       };
     }
     
-    // Get symbol token
-    const indexInfo = getIndexInfo(symbol);
-    if (!indexInfo) {
-      return { success: false, error: `Unknown symbol: ${symbol}`, candles: [] };
+    // =====================================
+    // STEP 2: Validate Interval
+    // =====================================
+    if (!VALID_INTERVALS[interval]) {
+      console.error(`[CANDLES] ❌ Invalid interval: ${interval}`);
+      console.log(`[CANDLES] Valid intervals: ${Object.keys(VALID_INTERVALS).join(", ")}`);
+      return {
+        success: false,
+        error: `Invalid interval: ${interval}. Valid values: ${Object.keys(VALID_INTERVALS).join(", ")}`,
+        candles: []
+      };
     }
     
-    // Calculate date range
+    // =====================================
+    // STEP 3: Get Symbol Token
+    // =====================================
+    const indexInfo = getIndexInfo(symbol);
+    if (!indexInfo) {
+      return {
+        success: false,
+        error: `Unknown symbol: ${symbol}`,
+        candles: []
+      };
+    }
+    
+    console.log(`[CANDLES] Exchange: ${indexInfo.exchange}`);
+    console.log(`[CANDLES] Symbol Token: ${indexInfo.symboltoken}`);
+    console.log(`[CANDLES] Name: ${indexInfo.name}`);
+    
+    // =====================================
+    // STEP 4: Calculate Date Range
+    // As per Angel limits for interval
+    // =====================================
     const maxDays = VALID_INTERVALS[interval].maxDays;
     const toDate = new Date();
     const fromDate = new Date();
     
-    // Go back appropriate days based on candle count needed
-    let daysBack = 7;
-    if (interval === "ONE_DAY") daysBack = 100;
-    else if (interval === "ONE_HOUR") daysBack = 30;
-    else if (interval === "FIFTEEN_MINUTE") daysBack = 14;
-    
-    daysBack = Math.min(daysBack, maxDays);
+    // Go back appropriate number of days
+    const daysBack = Math.min(7, maxDays); // 7 days is enough for 100 candles
     fromDate.setDate(fromDate.getDate() - daysBack);
+    
+    // Set to market hours (9:15 AM - 3:30 PM IST)
     fromDate.setHours(9, 15, 0, 0);
     
+    const formattedFromDate = formatDate(fromDate);
+    const formattedToDate = formatDate(toDate);
+    
+    console.log(`[CANDLES] From Date: ${formattedFromDate}`);
+    console.log(`[CANDLES] To Date: ${formattedToDate}`);
+    
+    // =====================================
+    // STEP 5: Build Payload
+    // Strictly as per Angel Documentation
+    // =====================================
     const payload = {
       exchange: indexInfo.exchange,
       symboltoken: indexInfo.symboltoken,
       interval: interval,
-      fromdate: formatDate(fromDate),
-      todate: formatDate(toDate)
+      fromdate: formattedFromDate,
+      todate: formattedToDate
     };
     
-    const url = `${BASE_URL}${ENDPOINTS.HISTORICAL}`;
+    console.log(`[CANDLES] Request Payload:`, JSON.stringify(payload, null, 2));
+    
+    // =====================================
+    // STEP 6: Make API Request
+    // =====================================
+    const url = `${BASE_URL}/rest/secure/angelbroking/historical/v1/getCandleData`;
+    console.log(`[CANDLES] API URL: ${url}`);
     
     const response = await axios.post(url, payload, {
-      headers,
-      timeout: TIMEOUT.API
+      headers: headers,
+      timeout: 15000
     });
     
+    console.log(`[CANDLES] Response Status: ${response.status}`);
+    console.log(`[CANDLES] Response Message: ${response.data?.message}`);
+    
+    // =====================================
+    // STEP 7: Parse Response
+    // =====================================
     if (response.data && response.data.status === true && response.data.data) {
       const rawCandles = response.data.data;
       
@@ -137,57 +240,65 @@ async function fetchCandles(symbol, interval = "FIVE_MINUTE", count = 100) {
         volume: parseInt(candle[5], 10) || 0
       }));
       
+      const executionTime = Date.now() - startTime;
+      
+      console.log(`[CANDLES] ✅ SUCCESS`);
+      console.log(`[CANDLES] Total candles received: ${rawCandles.length}`);
+      console.log(`[CANDLES] Candles returned: ${candles.length}`);
+      console.log(`[CANDLES] Execution time: ${executionTime}ms`);
+      console.log(`[CANDLES] ========================================`);
+      
       return {
         success: true,
-        symbol,
+        symbol: symbol,
         exchange: indexInfo.exchange,
         token: indexInfo.symboltoken,
-        interval,
+        interval: interval,
         candleCount: candles.length,
-        candles,
-        executionTime: Date.now() - startTime
+        candles: candles,
+        executionTime: executionTime
       };
     }
     
+    // =====================================
+    // STEP 8: Handle API Error Response
+    // =====================================
+    console.error(`[CANDLES] ❌ API returned failure`);
+    console.error(`[CANDLES] Status: ${response.data?.status}`);
+    console.error(`[CANDLES] Message: ${response.data?.message}`);
+    console.error(`[CANDLES] Error Code: ${response.data?.errorcode}`);
+    console.error(`[CANDLES] Full Response:`, JSON.stringify(response.data));
+    
     return {
       success: false,
-      error: response.data?.message || "Candle fetch failed",
+      error: response.data?.message || "Angel API returned failure",
+      errorCode: response.data?.errorcode,
       candles: []
     };
     
   } catch (err) {
-    console.error("[CANDLES] Error:", err.message);
+    const executionTime = Date.now() - startTime;
+    
+    console.error(`[CANDLES] ❌ EXCEPTION`);
+    console.error(`[CANDLES] Error Type: ${err.name}`);
+    console.error(`[CANDLES] Error Message: ${err.message}`);
+    
+    if (err.response) {
+      console.error(`[CANDLES] HTTP Status: ${err.response.status}`);
+      console.error(`[CANDLES] Response Data:`, JSON.stringify(err.response.data));
+    }
+    
+    console.error(`[CANDLES] Execution time: ${executionTime}ms`);
+    console.error(`[CANDLES] ========================================`);
+    
     return {
       success: false,
-      error: err.message,
+      error: err.response?.data?.message || err.message,
+      errorCode: err.response?.data?.errorcode,
+      httpStatus: err.response?.status,
       candles: []
     };
   }
-}
-
-// ==========================================
-// FETCH MULTI-TIMEFRAME CANDLES
-// ==========================================
-async function fetchMultiTimeframe(symbol) {
-  const results = {};
-  
-  const timeframes = [
-    { key: "1m", interval: "ONE_MINUTE", count: 50 },
-    { key: "5m", interval: "FIVE_MINUTE", count: 50 },
-    { key: "15m", interval: "FIFTEEN_MINUTE", count: 50 },
-    { key: "1h", interval: "ONE_HOUR", count: 50 },
-    { key: "daily", interval: "ONE_DAY", count: 100 }
-  ];
-  
-  for (const tf of timeframes) {
-    const result = await fetchCandles(symbol, tf.interval, tf.count);
-    results[tf.key] = result;
-    
-    // Small delay to avoid rate limits
-    await new Promise(r => setTimeout(r, 200));
-  }
-  
-  return results;
 }
 
 // ==========================================
@@ -219,16 +330,21 @@ function extractOHLCV(candles) {
 // GET LATEST CANDLE
 // ==========================================
 function getLatestFromCandles(candles) {
-  if (!candles || candles.length === 0) return null;
+  if (!candles || candles.length === 0) {
+    return null;
+  }
+  
   return candles[candles.length - 1];
 }
 
+// ==========================================
+// EXPORTS
+// ==========================================
 module.exports = {
   fetchCandles,
-  fetchMultiTimeframe,
   extractOHLCV,
   getLatestFromCandles,
   getIndexInfo,
-  VALID_INTERVALS,
-  HISTORICAL_TOKENS
+  INDEX_TOKENS,
+  VALID_INTERVALS
 };

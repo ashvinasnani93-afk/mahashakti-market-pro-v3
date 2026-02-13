@@ -1,5 +1,5 @@
 // ==================================================
-// PRE-BREAKOUT SCANNER
+// PRE-BREAKOUT SCANNER (NEW)
 // Detects compression BEFORE breakout
 // ==================================================
 
@@ -16,7 +16,7 @@ function detectPreBreakout(data = {}) {
   } = data;
 
   if (!close || highs.length < 10 || lows.length < 10) {
-    return { active: false, preBreakout: false, reason: "Insufficient data" };
+    return { preBreakout: false, reason: "Insufficient data" };
   }
 
   const last10Highs = highs.slice(-10);
@@ -32,7 +32,7 @@ function detectPreBreakout(data = {}) {
   const isCompressed = compressionRatio < 0.7;
 
   if (!isCompressed) {
-    return { active: false, preBreakout: false, reason: "No compression" };
+    return { preBreakout: false, reason: "No compression" };
   }
 
   let volumeBuilding = false;
@@ -67,11 +67,9 @@ function detectPreBreakout(data = {}) {
 
   if (score >= 6) {
     return {
-      active: true,
       preBreakout: true,
       confidence: "HIGH",
       score,
-      compressionRatio: compressionRatio.toFixed(2),
       note: "Stock coiling - breakout near",
       probability: "VERY_HIGH",
       action: "WATCH_CLOSELY"
@@ -80,18 +78,16 @@ function detectPreBreakout(data = {}) {
 
   if (score >= 4) {
     return {
-      active: true,
       preBreakout: true,
       confidence: "MEDIUM",
       score,
-      compressionRatio: compressionRatio.toFixed(2),
       note: "Possible breakout forming",
       probability: "MEDIUM",
       action: "MONITOR"
     };
   }
 
-  return { active: false, preBreakout: false, score, reason: "Low setup strength" };
+  return { preBreakout: false, score, reason: "Low setup strength" };
 }
 
 module.exports = {

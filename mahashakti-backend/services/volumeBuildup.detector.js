@@ -1,5 +1,5 @@
 // ==================================================
-// VOLUME BUILDUP DETECTOR
+// VOLUME BUILDUP DETECTOR (NEW)
 // Detects smart money accumulation
 // ==================================================
 
@@ -7,7 +7,7 @@ function detectVolumeBuildup(data = {}) {
   const { volumes = [], avgVolume, closes = [] } = data;
 
   if (volumes.length < 10 || !avgVolume) {
-    return { active: false, buildupDetected: false, reason: "Insufficient data" };
+    return { buildupDetected: false, reason: "Insufficient data" };
   }
 
   const last10 = volumes.slice(-10);
@@ -15,7 +15,7 @@ function detectVolumeBuildup(data = {}) {
   const prev3 = last10.slice(-8, -5);
 
   const avg5 = last5.reduce((s, v) => s + v, 0) / 5;
-  const avg3 = prev3.length > 0 ? prev3.reduce((s, v) => s + v, 0) / 3 : avgVolume;
+  const avg3 = prev3.reduce((s, v) => s + v, 0) / 3;
 
   const volumeIncreasing = avg5 > avg3 * 1.1;
   const aboveAvg = avg5 > avgVolume * 0.85;
@@ -41,7 +41,6 @@ function detectVolumeBuildup(data = {}) {
 
   if (score >= 7) {
     return {
-      active: true,
       buildupDetected: true,
       confidence: "HIGH",
       score,
@@ -53,7 +52,6 @@ function detectVolumeBuildup(data = {}) {
 
   if (score >= 5) {
     return {
-      active: true,
       buildupDetected: true,
       confidence: "MEDIUM",
       score,
@@ -64,7 +62,6 @@ function detectVolumeBuildup(data = {}) {
   }
 
   return {
-    active: false,
     buildupDetected: false,
     score,
     volumeRatio: ratio.toFixed(2),

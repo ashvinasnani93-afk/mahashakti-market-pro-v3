@@ -1,89 +1,149 @@
-// ==================================================
-// MOMENTUM SCANNER SERVICE
-// Evaluates momentum context for signals
-// ==================================================
+// ==========================================
+// MOMENTUM SCANNER SERVICE (OPERATOR-GRADE)
+// ROLE: Detect REAL momentum (NO SIGNAL)
+// MAHASHAKTI LOCKED LOGIC
+// ==========================================
 
+/**
+ * NEW ENGINE
+ * Used by signalDecision.service.js
+ */
 function evaluateMomentumContext(data = {}) {
-  const {
-    trend,
-    rsi,
-    volume,
-    avgVolume,
-    breakoutAction,
-    macdSignal,
-    adx
-  } = data;
+  try {
+    const close = Number(data.close || 0);
+    const ema20 = Number(data.ema20 || 0);
+    const ema50 = Number(data.ema50 || 0);
+    const rsi = Number(data.rsi || 0);
+    const volume = Number(data.volume || 0);
+    const avgVolume = Number(data.avgVolume || 0);
 
-  if (!trend || trend === "UNKNOWN" || trend === "SIDEWAYS") {
-    return { confirmed: false, reason: "No clear trend" };
-  }
-
-  let score = 0;
-  const factors = [];
-
-  // Trend confirmation
-  if (trend === "UPTREND" && breakoutAction === "BUY") {
-    score += 2;
-    factors.push("TREND_ALIGNED_BULL");
-  } else if (trend === "DOWNTREND" && breakoutAction === "SELL") {
-    score += 2;
-    factors.push("TREND_ALIGNED_BEAR");
-  }
-
-  // RSI momentum
-  if (typeof rsi === "number") {
-    if (trend === "UPTREND" && rsi >= 50 && rsi <= 70) {
-      score += 2;
-      factors.push("RSI_BULLISH_MOMENTUM");
-    } else if (trend === "DOWNTREND" && rsi <= 50 && rsi >= 30) {
-      score += 2;
-      factors.push("RSI_BEARISH_MOMENTUM");
+    if (!close || !ema20 || !ema50 || !rsi || !volume || !avgVolume) {
+      return {
+        active: false,
+        confirmed: false,
+        strength: "WEAK",
+        reason: "INSUFFICIENT_DATA"
+      };
     }
-  }
 
-  // Volume momentum
-  if (volume && avgVolume && avgVolume > 0) {
-    const volRatio = volume / avgVolume;
-    if (volRatio >= 1.5) {
-      score += 2;
-      factors.push("STRONG_VOLUME");
-    } else if (volRatio >= 1.2) {
-      score += 1;
-      factors.push("DECENT_VOLUME");
+    // -----------------------------
+    // TREND STRUCTURE
+    // -----------------------------
+    const uptrend = close > ema20 && ema20 > ema50;
+    const downtrend = close < ema20 && ema20 < ema50;
+
+    // -----------------------------
+    // MOMENTUM FILTERS
+    // -----------------------------
+    const rsiBullish = rsi >= 55;
+    const rsiBearish = rsi <= 45;
+    const volumePower = volume >= avgVolume * 1.2;
+
+    let active = false;
+    let confirmed = false;
+    let strength = "WEAK";
+
+    // STRONG MOMENTUM
+    if (uptrend && rsiBullish && volumePower) {
+      active = true;
+      confirmed = true;
+      strength = "STRONG";
+    } else if (downtrend && rsiBearish && volumePower) {
+      active = true;
+      confirmed = true;
+      strength = "STRONG";
     }
-  }
 
-  // ADX momentum (if available)
-  if (typeof adx === "number") {
-    if (adx >= 25) {
-      score += 2;
-      factors.push("STRONG_ADX");
-    } else if (adx >= 20) {
-      score += 1;
-      factors.push("MODERATE_ADX");
+    // WEAK / EARLY MOMENTUM
+    else if (
+      (uptrend && rsiBullish) ||
+      (downtrend && rsiBearish)
+    ) {
+      active = true;
+      confirmed = false;
+      strength = "WEAK";
     }
+
+    return {
+      active,
+      confirmed,
+      strength,
+      trend: uptrend ? "UPTREND" : downtrend ? "DOWNTREND" : "SIDEWAYS",
+      volumePower,
+      rsi
+    };
+
+  } catch (error) {
+    return {
+      active: false,
+      confirmed: false,
+      strength: "WEAK",
+      reason: "MOMENTUM_ENGINE_ERROR"
+    };
+  }
+}
+
+/**
+ * LEGACY ENGINE
+ * Backward compatible for old modules
+ */
+function scanMomentum(data = {}) {
+  const price = Number(data.price || 0);
+  const currentVolume = Number(data.currentVolume || 0);
+  const avgVolume = Number(data.avgVolume || 0);
+  const rangeHigh = Number(data.rangeHigh || 0);
+  const rangeLow = Number(data.rangeLow || 0);
+  const open = Number(data.open || 0);
+  const close = Number(data.close || 0);
+  const direction = data.direction || "BUY";
+
+  if (
+    !price ||
+    !close ||
+    !open ||
+    !avgVolume ||
+    (!rangeHigh && !rangeLow)
+  ) {
+    return { active: false, reason: "INVALID_DATA" };
   }
 
-  // MACD confirmation (if available)
-  if (macdSignal) {
-    if ((trend === "UPTREND" && macdSignal === "BULLISH") ||
-        (trend === "DOWNTREND" && macdSignal === "BEARISH")) {
-      score += 2;
-      factors.push("MACD_ALIGNED");
-    }
+  const volumeRatio = currentVolume / avgVolume;
+  if (volumeRatio < 1.8) {
+    return { active: false, reason: "NO_VOLUME_SPIKE" };
   }
 
-  const confirmed = score >= 4;
+  const bodySize = Math.abs(close - open);
+  const candleRange = Math.max(
+    Math.abs(rangeHigh - rangeLow),
+    bodySize
+  );
+
+  const bodyStrength = bodySize / candleRange;
+  if (bodyStrength < 0.5) {
+    return { active: false, reason: "WEAK_CANDLE_BODY" };
+  }
+
+  if (direction === "BUY" && close <= rangeHigh) {
+    return { active: false, reason: "NO_BREAKOUT" };
+  }
+
+  if (direction === "SELL" && close >= rangeLow) {
+    return { active: false, reason: "NO_BREAKDOWN" };
+  }
 
   return {
-    confirmed,
-    score,
-    factors,
-    momentum: score >= 6 ? "STRONG" : score >= 4 ? "MODERATE" : "WEAK",
-    direction: trend === "UPTREND" ? "BULLISH" : "BEARISH"
+    active: true,
+    state: "MOMENTUM_CONFIRMED",
+    direction,
+    volumeRatio: Number(volumeRatio.toFixed(2)),
+    bodyStrength: Number(bodyStrength.toFixed(2)),
   };
 }
 
+// ==========================================
+// EXPORTS
+// ==========================================
 module.exports = {
-  evaluateMomentumContext
+  evaluateMomentumContext,
+  scanMomentum
 };
