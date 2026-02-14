@@ -380,7 +380,9 @@ class OrchestratorService {
             strength += 1;
         }
 
-        // CALIBRATED STRONG SIGNAL CONDITIONS
+        // ============================================
+        // STRONG SIGNAL HARDENING (MANDATORY + OPTIONAL)
+        // ============================================
         const volumeRatio = indicators.volumeRatio || 0;
         const rsi = indicators.rsi || 50;
         const adx = indicators.adx || 15;
@@ -388,32 +390,69 @@ class OrchestratorService {
         const emaTrend = indicators.emaTrend || '';
 
         let signalType = null;
+        let strongDowngradeReason = null;
         
         if (breakout.type === 'BULLISH') {
-            // STRONG_BUY requires 4 out of 5 conditions
-            const strongBuyConditions = {
+            // MANDATORY for STRONG_BUY (must ALL pass)
+            const strongMandatory = {
                 volumeCheck: volumeRatio >= 2.0,
-                rsiInRange: rsi >= 58 && rsi <= 72,
-                adxStrong: adx >= 20,
-                rrGood: primaryRR >= 1.8,
-                trendStrong: emaTrend === 'STRONG_BULLISH' || emaTrend === 'BULLISH'
+                rrGood: primaryRR >= 1.8
             };
-            
-            const passCount = Object.values(strongBuyConditions).filter(v => v === true).length;
-            signalType = passCount >= 4 ? 'STRONG_BUY' : 'BUY';
+            const strongMandatoryPassed = strongMandatory.volumeCheck && strongMandatory.rrGood;
+
+            // OPTIONAL for STRONG_BUY (need 2 of 3)
+            const strongOptional = {
+                rsiInZone: rsi >= 58 && rsi <= 72,
+                adxStrong: adx >= 20,
+                trendAligned: emaTrend === 'STRONG_BULLISH' || emaTrend === 'BULLISH'
+            };
+            const strongOptionalCount = Object.values(strongOptional).filter(v => v === true).length;
+            const strongOptionalPassed = strongOptionalCount >= 2;
+
+            const isStrong = strongMandatoryPassed && strongOptionalPassed;
+            signalType = isStrong ? 'STRONG_BUY' : 'BUY';
+
+            // Log downgrade reason if not STRONG
+            if (!isStrong) {
+                const reasons = [];
+                if (!strongMandatory.volumeCheck) reasons.push('VOL_BELOW_2.0x');
+                if (!strongMandatory.rrGood) reasons.push('RR_BELOW_1.8');
+                if (strongMandatoryPassed && !strongOptionalPassed) {
+                    reasons.push(`OPTIONAL_${strongOptionalCount}/3_NEED_2`);
+                }
+                strongDowngradeReason = reasons.join(' | ');
+            }
             
         } else if (breakout.type === 'BEARISH') {
-            // STRONG_SELL requires 4 out of 5 conditions
-            const strongSellConditions = {
+            // MANDATORY for STRONG_SELL (must ALL pass)
+            const strongMandatory = {
                 volumeCheck: volumeRatio >= 2.0,
-                rsiInRange: rsi >= 28 && rsi <= 42,
-                adxStrong: adx >= 20,
-                rrGood: primaryRR >= 1.8,
-                trendStrong: emaTrend === 'STRONG_BEARISH' || emaTrend === 'BEARISH'
+                rrGood: primaryRR >= 1.8
             };
-            
-            const passCount = Object.values(strongSellConditions).filter(v => v === true).length;
-            signalType = passCount >= 4 ? 'STRONG_SELL' : 'SELL';
+            const strongMandatoryPassed = strongMandatory.volumeCheck && strongMandatory.rrGood;
+
+            // OPTIONAL for STRONG_SELL (need 2 of 3)
+            const strongOptional = {
+                rsiInZone: rsi >= 28 && rsi <= 42,
+                adxStrong: adx >= 20,
+                trendAligned: emaTrend === 'STRONG_BEARISH' || emaTrend === 'BEARISH'
+            };
+            const strongOptionalCount = Object.values(strongOptional).filter(v => v === true).length;
+            const strongOptionalPassed = strongOptionalCount >= 2;
+
+            const isStrong = strongMandatoryPassed && strongOptionalPassed;
+            signalType = isStrong ? 'STRONG_SELL' : 'SELL';
+
+            // Log downgrade reason if not STRONG
+            if (!isStrong) {
+                const reasons = [];
+                if (!strongMandatory.volumeCheck) reasons.push('VOL_BELOW_2.0x');
+                if (!strongMandatory.rrGood) reasons.push('RR_BELOW_1.8');
+                if (strongMandatoryPassed && !strongOptionalPassed) {
+                    reasons.push(`OPTIONAL_${strongOptionalCount}/3_NEED_2`);
+                }
+                strongDowngradeReason = reasons.join(' | ');
+            }
         }
 
         if (!signalType) return null;
@@ -441,11 +480,14 @@ class OrchestratorService {
             target3: riskReward.target3,
             riskReward: riskReward.primaryRR,
             riskPercent: riskReward.riskPercent,
+            strongDowngradeReason,
             analysis: {
                 breakout: {
                     type: breakout.type,
-                    resistance: breakout.resistance,
-                    support: breakout.support
+                    rejectionReason: breakout.rejectionReason,
+                    mandatoryConditions: breakout.mandatoryConditions,
+                    optionalConditions: breakout.optionalConditions,
+                    optionalPassCount: breakout.optionalPassCount
                 },
                 volume: {
                     ratio: volumeConfirm.ratio,
