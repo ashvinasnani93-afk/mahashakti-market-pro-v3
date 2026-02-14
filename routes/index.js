@@ -59,6 +59,12 @@ router.get('/', (req, res) => {
                 momentum: 'GET /api/aggregator/momentum',
                 volumeSpikes: 'GET /api/aggregator/volume-spikes',
                 priorityBuckets: 'GET /api/aggregator/priority-buckets'
+            },
+            system: {
+                health: 'GET /api/system/health',
+                universe: 'GET /api/system/universe',
+                refreshUniverse: 'POST /api/system/refresh-universe',
+                instruments: 'GET /api/system/instruments'
             }
         }
     });
