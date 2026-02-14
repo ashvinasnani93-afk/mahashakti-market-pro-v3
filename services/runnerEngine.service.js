@@ -365,7 +365,38 @@ class RunnerEngineService {
     }
 
     getTopRunners(count = 10) {
-        return this.topRunners.slice(0, count);
+        // 🔴 EXPOSE TOP 10 WITH runnerScore
+        return this.topRunners
+            .filter(r => r.strictValidation && r.strictValidation.valid)
+            .slice(0, count)
+            .map(runner => ({
+                ...runner,
+                runnerScore: this.calculateRunnerScore(runner)
+            }));
+    }
+
+    calculateRunnerScore(runner) {
+        let score = 0;
+        
+        // Base score from detection count
+        score += (runner.detectionCount || 0) * 10;
+        
+        // Move percent bonus
+        const movePercent = Math.abs(runner.totalMovePercent || 0);
+        if (movePercent >= 15) score += 40;
+        else if (movePercent >= 10) score += 30;
+        else if (movePercent >= 5) score += 20;
+        else if (movePercent >= 3) score += 10;
+        
+        // Strict validation bonus
+        if (runner.strictValidation) {
+            score += runner.strictValidation.passedCount * 8;
+        }
+        
+        // Sector outperformance
+        score += (runner.sectorOutperformance || 0);
+        
+        return Math.min(100, score);
     }
 
     getRunnersByMovePercent(minMove = 5, count = 20) {
