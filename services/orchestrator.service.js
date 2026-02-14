@@ -6,6 +6,7 @@ const institutionalService = require('./institutional.service');
 const regimeService = require('./regime.service');
 const riskRewardService = require('./riskReward.service');
 const safetyService = require('./safety.service');
+const signalCooldownService = require('./signalCooldown.service');
 
 class OrchestratorService {
     constructor() {
@@ -13,6 +14,7 @@ class OrchestratorService {
         this.activeSignals = [];
         this.lastAnalysis = new Map();
         this.signalRankScores = new Map();
+        this.cooldownEnabled = true;
     }
 
     async analyzeInstrument(instrument, candles5m, candles15m, candlesDaily) {
