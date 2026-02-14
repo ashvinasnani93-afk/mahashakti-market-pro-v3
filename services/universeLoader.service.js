@@ -97,8 +97,11 @@ class UniverseLoaderService {
                 }
             );
 
-            if (response.data?.data) {
+            if (response.data?.data && response.data.data.length > 0) {
                 this.parseInstruments(response.data.data, 'NSE_EQ', this.nseEquity);
+            } else {
+                console.log('[UNIVERSE] NSE Equity API returned empty, using fallback list');
+                this.loadFallbackNSEEquity();
             }
         } catch (error) {
             console.log('[UNIVERSE] NSE Equity API unavailable, using fallback list');
@@ -119,8 +122,11 @@ class UniverseLoaderService {
                 }
             );
 
-            if (response.data?.data) {
+            if (response.data?.data && response.data.data.length > 0) {
                 this.parseInstruments(response.data.data, 'FNO', this.fnoStocks);
+            } else {
+                console.log('[UNIVERSE] F&O API returned empty, using fallback list');
+                this.loadFallbackFNOStocks();
             }
         } catch (error) {
             console.log('[UNIVERSE] F&O API unavailable, using fallback list');
