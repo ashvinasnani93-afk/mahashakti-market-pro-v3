@@ -186,11 +186,11 @@ class OrchestratorService {
         };
         const bearishMandatoryPassed = bearishMandatory.priceBreakout && bearishMandatory.volumeConfirm;
 
-        // OPTIONAL CONDITIONS (need 2 of 3)
+        // OPTIONAL CONDITIONS (need 2 of 3) - Using adaptive RSI/ATR
         const bearishOptional = {
             emaAlignment: ema20 < ema50,
-            rsiInZone: rsi >= 25 && rsi <= 48,
-            atrSafe: atrPercent < 4.0
+            rsiInZone: rsi >= bearishRSIRange.min && rsi <= bearishRSIRange.max,
+            atrSafe: atrPercent < atrThreshold
         };
         const bearishOptionalCount = Object.values(bearishOptional).filter(v => v === true).length;
         const bearishOptionalPassed = bearishOptionalCount >= 2;
@@ -200,12 +200,12 @@ class OrchestratorService {
         // Build bearish rejection reason
         let bearishRejection = [];
         if (!bearishMandatory.priceBreakout) bearishRejection.push('CLOSE_NOT_BELOW_LOWEST5');
-        if (!bearishMandatory.volumeConfirm) bearishRejection.push('VOLUME_BELOW_1.5x');
+        if (!bearishMandatory.volumeConfirm) bearishRejection.push(`VOLUME_BELOW_${volumeThreshold}x`);
         if (bearishMandatoryPassed && !bearishOptionalPassed) {
             bearishRejection.push(`OPTIONAL_${bearishOptionalCount}/3_NEED_2`);
             if (!bearishOptional.emaAlignment) bearishRejection.push('EMA_NOT_ALIGNED');
-            if (!bearishOptional.rsiInZone) bearishRejection.push('RSI_OUT_OF_25-48');
-            if (!bearishOptional.atrSafe) bearishRejection.push('ATR_ABOVE_4%');
+            if (!bearishOptional.rsiInZone) bearishRejection.push(`RSI_OUT_OF_${bearishRSIRange.min}-${bearishRSIRange.max}`);
+            if (!bearishOptional.atrSafe) bearishRejection.push(`ATR_ABOVE_${atrThreshold}%`);
         }
 
         // ============================================
@@ -226,6 +226,11 @@ class OrchestratorService {
             valid,
             type,
             rejectionReason,
+            adaptiveFilters: {
+                volumeThreshold,
+                atrThreshold,
+                isTightened: adaptiveFilters.isTightened
+            },
             mandatoryConditions: type === 'BULLISH' ? bullishMandatory : type === 'BEARISH' ? bearishMandatory : null,
             optionalConditions: type === 'BULLISH' ? bullishOptional : type === 'BEARISH' ? bearishOptional : null,
             optionalPassCount: type === 'BULLISH' ? bullishOptionalCount : type === 'BEARISH' ? bearishOptionalCount : 0,
