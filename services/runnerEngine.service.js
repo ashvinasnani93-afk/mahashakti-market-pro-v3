@@ -57,8 +57,86 @@ class RunnerEngineService {
     }
 
     handleLivePrice(data) {
-        const { token, ltp, volume, timestamp } = data;
+        const { token, ltp, volume, timestamp, open } = data;
         this.recordPrice(token, ltp, volume, timestamp);
+        
+        // 🔴 INTRADAY CUMULATIVE TRACKING
+        if (open && open > 0) {
+            this.updateIntradayTracker(token, open, ltp);
+        }
+    }
+
+    // 🔴 INTRADAY CUMULATIVE % TRACKER
+    updateIntradayTracker(token, openPrice, currentPrice) {
+        const percentMove = ((currentPrice - openPrice) / openPrice) * 100;
+        const triggeredTiers = this.tierAlerts.get(token) || [];
+        const newTiers = [];
+        
+        // Check each tier (8%, 12%, 15%, 20%)
+        for (const tier of this.equityTiers) {
+            if (Math.abs(percentMove) >= tier && !triggeredTiers.includes(tier)) {
+                newTiers.push(tier);
+                console.log(`[RUNNER_ENGINE] 🔥 TIER ${tier}% TRIGGERED | Token: ${token} | Move: ${percentMove.toFixed(2)}%`);
+            }
+        }
+        
+        if (newTiers.length > 0) {
+            this.tierAlerts.set(token, [...triggeredTiers, ...newTiers]);
+        }
+        
+        this.intradayTrackers.set(token, {
+            openPrice,
+            currentPrice,
+            percentMove: parseFloat(percentMove.toFixed(2)),
+            direction: percentMove > 0 ? 'UP' : 'DOWN',
+            triggeredTiers: this.tierAlerts.get(token) || [],
+            lastUpdate: Date.now()
+        });
+    }
+
+    // 🔴 PREMIUM GROWTH TRACKER (for options)
+    updatePremiumTracker(token, startPremium, currentPremium, isOption = true) {
+        if (!isOption || startPremium <= 0) return;
+        
+        const percentGain = ((currentPremium - startPremium) / startPremium) * 100;
+        const triggeredTiers = this.premiumTierAlerts.get(token) || [];
+        const newTiers = [];
+        
+        // Check each tier (50%, 100%, 200%, 500%, 1000%)
+        for (const tier of this.premiumTiers) {
+            if (percentGain >= tier && !triggeredTiers.includes(tier)) {
+                newTiers.push(tier);
+                console.log(`[RUNNER_ENGINE] 💎 PREMIUM ${tier}% TRIGGERED | Token: ${token} | Gain: ${percentGain.toFixed(2)}%`);
+            }
+        }
+        
+        if (newTiers.length > 0) {
+            this.premiumTierAlerts.set(token, [...triggeredTiers, ...newTiers]);
+        }
+        
+        this.premiumTrackers.set(token, {
+            startPremium,
+            currentPremium,
+            percentGain: parseFloat(percentGain.toFixed(2)),
+            triggeredTiers: this.premiumTierAlerts.get(token) || [],
+            lastUpdate: Date.now()
+        });
+    }
+
+    // 🔴 GET INTRADAY TIER RUNNERS
+    getIntradayTierRunners(minTier = 8) {
+        return Array.from(this.intradayTrackers.entries())
+            .filter(([_, data]) => Math.abs(data.percentMove) >= minTier)
+            .map(([token, data]) => ({ token, ...data }))
+            .sort((a, b) => Math.abs(b.percentMove) - Math.abs(a.percentMove));
+    }
+
+    // 🔴 GET PREMIUM TIER EXPLOSIONS
+    getPremiumTierExplosions(minTier = 50) {
+        return Array.from(this.premiumTrackers.entries())
+            .filter(([_, data]) => data.percentGain >= minTier)
+            .map(([token, data]) => ({ token, ...data }))
+            .sort((a, b) => b.percentGain - a.percentGain);
     }
 
     recordPrice(token, price, volume, timestamp = Date.now()) {
