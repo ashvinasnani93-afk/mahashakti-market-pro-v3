@@ -117,14 +117,12 @@ class OrchestratorService {
 
     checkBreakout(candles, indicators) {
         if (!candles || candles.length < 20) {
-            return { valid: false, type: null, failedConditions: ['INSUFFICIENT_DATA'] };
+            return { valid: false, type: null, rejectionReason: 'INSUFFICIENT_DATA' };
         }
 
         const recent = candles.slice(-20);
         const last5 = candles.slice(-5);
         const closes = recent.map(c => c.close);
-        const highs = recent.map(c => c.high);
-        const lows = recent.map(c => c.low);
 
         const lastClose = closes[closes.length - 1];
         const prevClose = closes[closes.length - 2];
@@ -140,59 +138,93 @@ class OrchestratorService {
         const rsi = indicators.rsi || 50;
         const atrPercent = indicators.atrPercent || 0;
 
-        // STRICT BULLISH VALIDATION (Relaxed RSI range)
-        const bullishConditions = {
-            emaAlignment: ema20 > ema50,
+        // ============================================
+        // BULLISH BREAKOUT VALIDATION
+        // ============================================
+        // MANDATORY CONDITIONS (must ALL pass)
+        const bullishMandatory = {
             priceBreakout: lastClose > highest5,
-            volumeConfirm: volumeRatio >= 1.5,
-            rsiInRange: rsi >= 52 && rsi <= 75,
+            volumeConfirm: volumeRatio >= 1.5
+        };
+        const bullishMandatoryPassed = bullishMandatory.priceBreakout && bullishMandatory.volumeConfirm;
+
+        // OPTIONAL CONDITIONS (need 2 of 3)
+        const bullishOptional = {
+            emaAlignment: ema20 > ema50,
+            rsiInZone: rsi >= 52 && rsi <= 75,
             atrSafe: atrPercent < 4.0
         };
+        const bullishOptionalCount = Object.values(bullishOptional).filter(v => v === true).length;
+        const bullishOptionalPassed = bullishOptionalCount >= 2;
 
-        const bullishFailures = [];
-        if (!bullishConditions.emaAlignment) bullishFailures.push('EMA20 <= EMA50');
-        if (!bullishConditions.priceBreakout) bullishFailures.push('Close <= Highest5');
-        if (!bullishConditions.volumeConfirm) bullishFailures.push('VolumeRatio < 1.5');
-        if (!bullishConditions.rsiInRange) bullishFailures.push('RSI not in 52-75');
-        if (!bullishConditions.atrSafe) bullishFailures.push('ATR% >= 4.0');
+        const bullishValid = bullishMandatoryPassed && bullishOptionalPassed;
 
-        const bullishPassCount = Object.values(bullishConditions).filter(v => v === true).length;
-        const bullishValid = bullishPassCount >= 4; // Need 4 out of 5 conditions
+        // Build bullish rejection reason
+        let bullishRejection = [];
+        if (!bullishMandatory.priceBreakout) bullishRejection.push('CLOSE_NOT_ABOVE_HIGHEST5');
+        if (!bullishMandatory.volumeConfirm) bullishRejection.push('VOLUME_BELOW_1.5x');
+        if (bullishMandatoryPassed && !bullishOptionalPassed) {
+            bullishRejection.push(`OPTIONAL_${bullishOptionalCount}/3_NEED_2`);
+            if (!bullishOptional.emaAlignment) bullishRejection.push('EMA_NOT_ALIGNED');
+            if (!bullishOptional.rsiInZone) bullishRejection.push('RSI_OUT_OF_52-75');
+            if (!bullishOptional.atrSafe) bullishRejection.push('ATR_ABOVE_4%');
+        }
 
-        // STRICT BEARISH VALIDATION (Relaxed RSI range)
-        const bearishConditions = {
-            emaAlignment: ema20 < ema50,
+        // ============================================
+        // BEARISH BREAKOUT VALIDATION
+        // ============================================
+        // MANDATORY CONDITIONS (must ALL pass)
+        const bearishMandatory = {
             priceBreakout: lastClose < lowest5,
-            volumeConfirm: volumeRatio >= 1.5,
-            rsiInRange: rsi >= 25 && rsi <= 48,
+            volumeConfirm: volumeRatio >= 1.5
+        };
+        const bearishMandatoryPassed = bearishMandatory.priceBreakout && bearishMandatory.volumeConfirm;
+
+        // OPTIONAL CONDITIONS (need 2 of 3)
+        const bearishOptional = {
+            emaAlignment: ema20 < ema50,
+            rsiInZone: rsi >= 25 && rsi <= 48,
             atrSafe: atrPercent < 4.0
         };
+        const bearishOptionalCount = Object.values(bearishOptional).filter(v => v === true).length;
+        const bearishOptionalPassed = bearishOptionalCount >= 2;
 
-        const bearishFailures = [];
-        if (!bearishConditions.emaAlignment) bearishFailures.push('EMA20 >= EMA50');
-        if (!bearishConditions.priceBreakout) bearishFailures.push('Close >= Lowest5');
-        if (!bearishConditions.volumeConfirm) bearishFailures.push('VolumeRatio < 1.5');
-        if (!bearishConditions.rsiInRange) bearishFailures.push('RSI not in 25-48');
-        if (!bearishConditions.atrSafe) bearishFailures.push('ATR% >= 4.0');
+        const bearishValid = bearishMandatoryPassed && bearishOptionalPassed;
 
-        const bearishPassCount = Object.values(bearishConditions).filter(v => v === true).length;
-        const bearishValid = bearishPassCount >= 4; // Need 4 out of 5 conditions
+        // Build bearish rejection reason
+        let bearishRejection = [];
+        if (!bearishMandatory.priceBreakout) bearishRejection.push('CLOSE_NOT_BELOW_LOWEST5');
+        if (!bearishMandatory.volumeConfirm) bearishRejection.push('VOLUME_BELOW_1.5x');
+        if (bearishMandatoryPassed && !bearishOptionalPassed) {
+            bearishRejection.push(`OPTIONAL_${bearishOptionalCount}/3_NEED_2`);
+            if (!bearishOptional.emaAlignment) bearishRejection.push('EMA_NOT_ALIGNED');
+            if (!bearishOptional.rsiInZone) bearishRejection.push('RSI_OUT_OF_25-48');
+            if (!bearishOptional.atrSafe) bearishRejection.push('ATR_ABOVE_4%');
+        }
 
+        // ============================================
+        // FINAL RESULT
+        // ============================================
         const valid = bullishValid || bearishValid;
         const type = bullishValid ? 'BULLISH' : bearishValid ? 'BEARISH' : null;
-        const failedConditions = bullishValid ? [] : bearishValid ? [] : 
-            bullishFailures.length <= bearishFailures.length ? bullishFailures : bearishFailures;
+        
+        // Pick rejection reason from closer direction
+        let rejectionReason = null;
+        if (!valid) {
+            const bullScore = (bullishMandatory.priceBreakout ? 1 : 0) + (bullishMandatory.volumeConfirm ? 1 : 0);
+            const bearScore = (bearishMandatory.priceBreakout ? 1 : 0) + (bearishMandatory.volumeConfirm ? 1 : 0);
+            rejectionReason = bullScore >= bearScore ? bullishRejection.join(' | ') : bearishRejection.join(' | ');
+        }
 
         return {
             valid,
             type,
-            failedConditions,
-            conditions: type === 'BULLISH' ? bullishConditions : type === 'BEARISH' ? bearishConditions : null,
-            passCount: type === 'BULLISH' ? bullishPassCount : type === 'BEARISH' ? bearishPassCount : 0,
+            rejectionReason,
+            mandatoryConditions: type === 'BULLISH' ? bullishMandatory : type === 'BEARISH' ? bearishMandatory : null,
+            optionalConditions: type === 'BULLISH' ? bullishOptional : type === 'BEARISH' ? bearishOptional : null,
+            optionalPassCount: type === 'BULLISH' ? bullishOptionalCount : type === 'BEARISH' ? bearishOptionalCount : 0,
             highest5,
             lowest5,
-            priceAboveHighest5: lastClose > highest5,
-            priceBelowLowest5: lastClose < lowest5,
             details: {
                 lastClose,
                 prevClose,
