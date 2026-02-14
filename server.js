@@ -114,30 +114,46 @@ async function startServer() {
         console.log('[2/6] ✓ WebSocket initialized');
         const wsStatus = wsService.getStatus();
         console.log(`      Max Subscriptions: ${wsStatus.maxSubscriptions}`);
-        console.log(`      Buckets: CORE | ACTIVE | ROTATION`);
+        console.log(`      Buckets: CORE | ACTIVE | VOLUME_LEADERS | EXPLOSION | ROTATION`);
         console.log('');
 
-        console.log('[3/6] Initializing Scanner Loop Engine...');
+        console.log('[3/8] Initializing Scanner Loop Engine...');
         await marketScannerLoopService.initialize();
-        console.log('[3/6] ✓ Scanner Loop initialized');
+        console.log('[3/8] ✓ Scanner Loop initialized');
         const scannerStatus = marketScannerLoopService.getStatus();
         console.log(`      Core Tokens: ${scannerStatus.buckets.core}`);
         console.log(`      Batch Size: 20 tokens`);
         console.log('');
 
-        console.log('[4/6] Starting Scanner Loop...');
+        console.log('[4/8] Initializing Strike Sweep Engine...');
+        await strikeSweepService.initialize();
+        console.log('[4/8] ✓ Strike Sweep Engine initialized');
+        console.log(`      ATM Window: ±20 strikes`);
+        console.log(`      Premium Filter: ₹3-₹650`);
+        console.log('');
+
+        console.log('[5/8] Initializing Runner Engine...');
+        runnerEngineService.initialize();
+        console.log('[5/8] ✓ Runner Engine initialized');
+        console.log(`      Early Move Detection: 1.5%`);
+        console.log(`      Volume Spike: 3x`);
+        console.log('');
+
+        console.log('[6/8] Initializing Signal Cooldown System...');
+        signalCooldownService.initialize();
+        console.log('[6/8] ✓ Signal Cooldown initialized');
+        console.log(`      Cooldown: 15 minutes`);
+        console.log(`      Deduplication: Active`);
+        console.log('');
+
+        console.log('[7/8] Starting Scanner Loop...');
         await marketScannerLoopService.start();
-        console.log('[4/6] ✓ Scanner Loop running');
+        console.log('[7/8] ✓ Scanner Loop running');
         console.log('');
 
-        console.log('[5/6] Warming Candle Cache...');
+        console.log('[8/8] Warming Candle Cache...');
         await warmCandleCache();
-        console.log('[5/6] ✓ Cache warmed');
-        console.log('');
-
-        console.log('[6/6] Starting Explosion Engine...');
-        console.log('[6/6] ✓ Explosion Engine active');
-        console.log(`      Tracking: Stock Runners, Option Premiums, Gamma Acceleration`);
+        console.log('[8/8] ✓ Cache warmed');
         console.log('');
 
         app.listen(PORT, '0.0.0.0', () => {
