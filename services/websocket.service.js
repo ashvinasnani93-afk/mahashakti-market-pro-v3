@@ -211,6 +211,76 @@ class FocusWebSocketService {
         }
     }
 
+    // 🔴 AUTO ROTATION EVERY 120 SECONDS
+    startRotation() {
+        this.stopRotation();
+        const rotationMs = (this.wsSettings.rotationIntervalSec || 120) * 1000;
+        
+        this.rotationInterval = setInterval(() => {
+            this.rotateSubscriptions();
+        }, rotationMs);
+        
+        console.log(`[WS] Auto-rotation started: every ${rotationMs / 1000}s`);
+    }
+
+    stopRotation() {
+        if (this.rotationInterval) {
+            clearInterval(this.rotationInterval);
+            this.rotationInterval = null;
+        }
+    }
+
+    rotateSubscriptions() {
+        if (this.coreOnlyMode) {
+            console.log('[WS] Rotation skipped - CORE ONLY mode active');
+            return;
+        }
+
+        const rotationTokens = Array.from(this.priorityBuckets.ROTATION);
+        if (rotationTokens.length === 0) return;
+
+        // Rotate: move first 5 to end
+        const toRotate = Math.min(5, Math.floor(rotationTokens.length / 2));
+        const rotated = rotationTokens.slice(toRotate).concat(rotationTokens.slice(0, toRotate));
+        
+        this.priorityBuckets.ROTATION = new Set(rotated);
+        
+        // Re-sync subscriptions
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+        
+        console.log(`[WS] Rotation complete: ${toRotate} tokens cycled`);
+    }
+
+    // 🔴 CORE ONLY MODE (CPU > 90%)
+    enableCoreOnlyMode() {
+        if (this.coreOnlyMode) return;
+        
+        this.coreOnlyMode = true;
+        console.log('[WS] CORE ONLY MODE ENABLED - Unsubscribing non-core tokens');
+        
+        // Unsubscribe everything except CORE
+        const nonCore = [
+            ...this.priorityBuckets.ACTIVE,
+            ...this.priorityBuckets.EXPLOSION,
+            ...this.priorityBuckets.ROTATION
+        ];
+        
+        if (nonCore.length > 0) {
+            this.unsubscribeTokens(nonCore);
+        }
+    }
+
+    disableCoreOnlyMode() {
+        if (!this.coreOnlyMode) return;
+        
+        this.coreOnlyMode = false;
+        console.log('[WS] CORE ONLY MODE DISABLED - Resuming full subscriptions');
+        
+        // Re-sync all buckets
+        this.syncSubscriptions();
+    }
+
     handleMessage(data) {
         try {
             if (data instanceof ArrayBuffer && data.byteLength > 0) {
