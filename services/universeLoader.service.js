@@ -114,8 +114,11 @@ class UniverseLoaderService {
             this.detectExpiries();
             this.buildAllInstruments();
 
-            // Clear master data to free memory
+            // 🔴 MEMORY OPTIMIZATION - Clear master data immediately
             this.masterData = null;
+            if (global.gc) {
+                global.gc();
+            }
 
             this.lastRefresh = new Date();
             this.stats.lastRefreshDuration = Date.now() - startTime;
