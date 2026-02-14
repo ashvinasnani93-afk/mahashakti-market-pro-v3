@@ -599,8 +599,13 @@ class FocusWebSocketService {
         this.subscriptions.clear();
 
         const coreTokens = Array.from(this.priorityBuckets.CORE);
-        const activeTokens = Array.from(this.priorityBuckets.ACTIVE);
-        const rotationTokens = Array.from(this.priorityBuckets.ROTATION);
+        const activeTokens = Array.from(this.priorityBuckets.ACTIVE).slice(0, 20);
+        const explosionTokens = Array.from(this.priorityBuckets.EXPLOSION).slice(0, 10);
+        
+        // Calculate remaining slots for rotation
+        const usedSlots = coreTokens.length + activeTokens.length + explosionTokens.length;
+        const rotationSlots = this.wsSettings.maxSubscriptions - usedSlots;
+        const rotationTokens = Array.from(this.priorityBuckets.ROTATION).slice(0, rotationSlots);
 
         setTimeout(() => {
             if (coreTokens.length > 0) {
@@ -612,14 +617,19 @@ class FocusWebSocketService {
             if (activeTokens.length > 0) {
                 this.subscribeTokens(activeTokens, 1, 3);
             }
-        }, 600);
+        }, 500);
 
         setTimeout(() => {
-            const maxRotation = this.wsSettings.maxSubscriptions - coreTokens.length - activeTokens.length;
-            if (rotationTokens.length > 0 && maxRotation > 0) {
-                this.subscribeTokens(rotationTokens.slice(0, maxRotation), 1, 3);
+            if (explosionTokens.length > 0) {
+                this.subscribeTokens(explosionTokens, 1, 3);
             }
-        }, 1100);
+        }, 900);
+
+        setTimeout(() => {
+            if (rotationTokens.length > 0) {
+                this.subscribeTokens(rotationTokens, 1, 3);
+            }
+        }, 1300);
     }
 
     shiftPriority(token, fromBucket, toBucket) {
