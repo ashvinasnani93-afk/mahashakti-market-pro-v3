@@ -16,6 +16,9 @@ const runnerEngineService = require('./services/runnerEngine.service');
 const signalCooldownService = require('./services/signalCooldown.service');
 const universeLoaderService = require('./services/universeLoader.service');
 const systemMonitorService = require('./services/systemMonitor.service');
+const oiIntelligenceService = require('./services/oiIntelligence.service');
+const crossMarketContextService = require('./services/crossMarketContext.service');
+const safetyService = require('./services/safety.service');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
