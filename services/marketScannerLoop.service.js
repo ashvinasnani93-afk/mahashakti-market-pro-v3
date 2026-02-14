@@ -368,8 +368,52 @@ class MarketScannerLoopService {
             },
             momentumCount: this.momentumScores.size,
             volumeSpikeCount: this.volumeSpikes.size,
-            strikeDiscoveryQueueLength: this.strikeDiscoveryQueue.length
+            strikeDiscoveryQueueLength: this.strikeDiscoveryQueue.length,
+            protectionMode: {
+                reducedMode: this.reducedMode,
+                coreOnlyMode: this.coreOnlyMode
+            }
         };
+    }
+
+    // 🔴 CPU PROTECTION: REDUCED MODE (CPU > 75%)
+    setReducedMode(enabled) {
+        if (this.reducedMode === enabled) return;
+        
+        this.reducedMode = enabled;
+        
+        if (enabled) {
+            console.log('[SCANNER_LOOP] REDUCED MODE ENABLED - Slowing scan frequency');
+            this.restartWithInterval(this.reducedBatchInterval);
+        } else {
+            console.log('[SCANNER_LOOP] REDUCED MODE DISABLED - Normal scan frequency');
+            this.restartWithInterval(this.normalBatchInterval);
+        }
+    }
+
+    // 🔴 CPU PROTECTION: CORE ONLY MODE (CPU > 90%)
+    setCoreOnlyMode(enabled) {
+        if (this.coreOnlyMode === enabled) return;
+        
+        this.coreOnlyMode = enabled;
+        
+        if (enabled) {
+            console.log('[SCANNER_LOOP] CORE ONLY MODE ENABLED - Scanning indices only');
+        } else {
+            console.log('[SCANNER_LOOP] CORE ONLY MODE DISABLED - Full scanning resumed');
+        }
+    }
+
+    restartWithInterval(intervalMs) {
+        if (this.scanInterval) {
+            clearInterval(this.scanInterval);
+        }
+        
+        if (this.isRunning) {
+            this.scanInterval = setInterval(() => {
+                this.runBatchScan();
+            }, intervalMs);
+        }
     }
 
     stop() {
