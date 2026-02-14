@@ -1,7 +1,5 @@
 const instruments = require('../config/instruments.config');
 const settings = require('../config/settings.config');
-const candleService = require('./candle.service');
-const indicatorService = require('./indicator.service');
 const wsService = require('./websocket.service');
 
 class RunnerEngineService {
