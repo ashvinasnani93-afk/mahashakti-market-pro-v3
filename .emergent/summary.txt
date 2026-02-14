@@ -1,110 +1,75 @@
 <analysis>**original_problem_statement:**
-The user wants to build a high-performance backend system called MAHASHAKTI for stock market analysis and signal generation. The system must not have a frontend at this stage.
+The user wants to build a high-performance, production-grade backend system named MAHASHAKTI for stock market analysis and signal generation. The system should not have a frontend.
 
 **PRODUCT REQUIREMENTS:**
-- **Objective:** Scan the entire market (Indices, F&O Stocks, Commodities, Options), generate only actionable signals (STRONG BUY, BUY, SELL, STRONG SELL), and detect explosion strikes (rapid price movements) early. The system must be production-stable.
-- **Architecture:** The backend signal generation must follow a specific chain: Live Data -> Candle Engine -> Indicator Engine -> Breakout Engine -> Volume Engine -> Higher TF Alignment -> Institutional Layer -> Regime Filter -> Risk Reward Engine -> Safety Layer -> Final Output Filter.
-- **Data Source:** Angel One API must be used for live and historical data. The initial code should be based on the user's GitHub repo: . All existing features from this repo must be preserved and enhanced, not removed.
-- **Engines:**
-    - **Market Data Engine:** Robust WebSocket handling (max 50 subscriptions, exponential backoff, no reconnect storms) and a REST-based candle engine.
-    - **Indicator Engine:** Accurate calculations for EMA, RSI, ATR, etc., with no approximations.
-    - **Core Sniper Signal Engine:** Strict rules for BUY/STRONG_BUY signals based on a combination of indicators.
-    - **Explosion Engine:** A critical module to detect various types of rapid market movements like Early Intraday Expansion, High Momentum Runners, and Option Strike Acceleration.
-- **Database:** MongoDB must be used for storing historical data, logs, and tracking signals.
-- **Deployment:** The final application must be deployed on Railway, and the agent must provide live proof of its functionality.
-- **Credentials:**
-    - ANGEL_API_KEY=
-    - ANGEL_CLIENT_ID=
-    - ANGEL_PASSWORD=
-    - ANGEL_TOTP_SECRET=
-    - PORT=
+- The system must be production-stable and built with an institutional-grade, modular architecture.
+- It must scan the entire market (NSE EQ stocks, F&O contracts) fetched dynamically from the Angel One instrument master.
+- It must generate only actionable signals (STRONG BUY, BUY, SELL, STRONG SELL) with no WAIT signals.
+- The signal logic must be strict and configurable, with features for dynamic tightening of rules if too many candidates are found.
+- It must include a sophisticated Runner Engine to detect stocks moving 15-20% with high volume and sector strength.
+- The system needs an Adaptive Strike Range Engine that adjusts the option premium filter based on market volatility (VIX/ATR).
+- It must have a robust WebSocket management system with priority buckets that can handle a large number of instruments without exceeding the 50-subscription limit.
+- A CPU load protection system is required to monitor system health and scale down operations if CPU usage exceeds 75% or 90%.
+- All data processing should happen in-memory; no database is permitted.
+- The user requires detailed logging for debugging, including reasons for breakout rejections and signal downgrades.
 
 **User's preferred language**: The user communicates in **Hinglish**. The next agent MUST respond in Hinglish only.
 
 **what currently exists?**
-The agent has set up a Node.js backend project in . After an initial attempt to create a simplified version was rejected by the user, the agent copied all 95 files from the user's reference GitHub repository to ensure no features were lost.
-
-To resolve a critical startup error, the agent replaced the original  (which used a non-functional  constructor) with a custom, pure WebSocket implementation. This allowed the server to start successfully. The backend is now in a runnable state, connects to the WebSocket, and initializes the market scanner.
+The project is a 32-file Node.js backend application designed for stock market analysis. The agent has just begun implementing a major 7-point enhancement plan requested by the user. As part of this, four new, but currently un-integrated, service/route files have been created: , , , and . The agent was in the process of modifying  when the session ended. The application is currently in a broken, non-runnable state due to this partial implementation.
 
 **Last working item**:
-    - Last item agent was working: The user repeatedly requested a full code dump of all 95 project files. The agent's last action was attempting to  all files, but the output was truncated. The agent was in the middle of fulfilling this request.
+    - Last item agent was working: The agent was implementing the Adaptive Strike Range Engine (Point 2 of the user's 7-point plan). It had just added a  function to  and was about to modify the  function to use this new dynamic logic. This is part of a larger, multi-feature implementation task.
     - Status: IN PROGRESS
-    - Agent Testing Done: Y
-    - Which testing method agent to use? Manual testing by running , observing the console logs for stability, and using  to check the  endpoint.
+    - Agent Testing Done: N
+    - Which testing method agent to use? backend testing agent. Once all 7 features are implemented and integrated, the agent must create a new simulation test script to validate the new adaptive logic, universe loader, and system monitor. It should also use  to test the new  endpoints.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-  - Issue 1: The user's request to dump all 95 project files has not been completed.
-  - Issue 2: The WebSocket implementation deviates from the user's original code.
-  - Issue 3: The system's core signal-generating functionality has not been tested in a live market.
-
-  Issues Detail:
-  - Issue 1: **User is waiting for a full code dump (P0)**
-     - Attempted fixes: The agent tried to  all files at once, which resulted in a truncated output.
-     - Next debug checklist:
-         - List all 95  files.
-         -  each file sequentially or in smaller batches to avoid output truncation and ensure the user sees the complete code for every file.
-     - Why fix this issue and what will be achieved with the fix? This is a direct and repeated user command. Fulfilling it will build trust and provide the user with the transparency they are asking for.
-     - Status: IN PROGRESS
-     - Is recurring issue? Y
-     - Should Test frontend/backend/both after fix? NA
-     - Blocked on other issue: None
-
-  - Issue 2: **WebSocket service was replaced (P1)**
-     - Attempted fixes: The original  from the user's repo caused a crash because the  constructor failed. The agent replaced the entire file with a working, pure WebSocket implementation to get the system running.
-     - Next debug checklist:
-         - The agent needs to be aware that this is a significant deviation from the original repo.
-         - The new WebSocket service needs to be validated against all of the user's strict requirements (max 50 subscriptions, exponential backoff, singleton guard, no reconnect storms).
-     - Why fix this issue and what will be achieved with the fix? While the current solution works, it's not what the user provided. Ensuring it meets all requirements is crucial for production stability.
-     - Status: RESOLVED (for now, but requires validation)
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? backend
-     - Blocked on other issue: None
-
-  - Issue 3: **Live Market Testing is pending (P1)**
-     - Attempted fixes: The agent ran the server after market hours. It observed that the scanner was working but correctly filtered signals as WAIT due to a lack of live price action.
-     - Next debug checklist:
-         - The system must be run during active market hours.
-         - Test the  endpoint to capture live signals.
-         - Test the  endpoint to monitor connection stability over a 1-hour period.
-         - Collect JSON proof for BUY, SELL, STRONG_BUY signals and at least one Explosion event.
-     - Why fix this issue and what will be achieved with the fix? This is the ultimate goal of the project—to prove the system works in a live environment and generates the required signals.
-     - Status: NOT STARTED
-     - Is recurring issue? N
-     - Should Test frontend/backend/both after fix? backend
-     - Blocked on other issue: None
+There are no specific bugs. The main pending item is the large, in-progress feature implementation task.
 
 **In progress Task List**:
-  - Task 1: **Dump all 95 project files (P0)**
-     - Where to resume: From the root of , list all files and then display the content of each file one by one.
-     - What will be achieved with this? Fulfill the user's direct and repeated request.
+  - Task 1: **Complete the 7-Point Enhancement Plan (P0)**
+  
+ Task Detail:
+  - Task 1: **Complete the 7-Point Enhancement Plan (P0)**
+     - Where to resume: 
+       1. Continue editing . Modify the  function to use the newly created  logic.
+       2. Implement Point 3: Upgrade the **Runner Engine** in  with the stricter 4/5 validation rule and .
+       3. Implement Point 6: Modify the **WebSocket Priority Engine** in  to match the new CORE/ACTIVE/EXPLOSION/ROTATION structure.
+       4. Integrate all new services into the main application:
+          - In : Initialize  and , and schedule their respective jobs (daily universe refresh, periodic health checks).
+          - In : Mount the new .
+          - In : Integrate the  to dynamically tighten rules.
+          - In : Replace the static instrument list with the dynamic list from .
+     - What will be achieved with this? The system will become significantly more dynamic, robust, and production-ready, featuring full market scanning, adaptive filtering based on volatility, and self-protection against CPU overload.
      - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? NA
+     - Should Test frontend/backend/both after fix? backend
      - Blocked on something: No
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-  - **Live Market Proof (P0):** After the file dump, the next critical step is to run the application during live market hours and provide the proof requested by the user:
-      -  output showing .
-      -  output with actionable signals.
-      - JSON output for 3 live signals (STRONG_BUY, BUY, SELL).
-      - JSON output for 1 explosion detection.
-      - A 1-hour log showing WebSocket stability.
+    - **Final Validation (P0):** After implementing all 7 enhancements, run a comprehensive dry simulation to validate the new features as per the user's criteria (universe size, strike count, CPU logs, WebSocket limits, memory usage).
+    - **Live Market Proof (P1):** Run the application during live market hours to capture and prove the generation of actionable signals and explosion events.
+
 - **Future Tasks:**
-  - **Railway Deployment (P1):** Guide the user through deploying the application to Railway, as this was a key requirement.
-  - **Database Verification (P2):** Thoroughly test the MongoDB integration to ensure historical data, signal logs, and explosion history are being stored and retrieved correctly.
+    - **Railway Deployment (P1):** Guide the user through deploying the application on Railway.
+    - **GitHub Push (P2):** Instruct the user on how to use the Save to Github feature to push the final code.
 
 **Completed work in this session**
-- Cloned the user's reference GitHub repository ().
-- Set up the project structure in .
-- Copied all 95 source files from the reference repository into the working directory, ensuring feature preservation as requested by the user.
-- Replaced the failing  with a stable, pure WebSocket implementation, enabling the server to run.
-- Updated  to correctly integrate all the copied services and routes.
-- Fixed several module pathing errors that occurred after copying the files.
-- Achieved a stable running state where the backend connects to the WebSocket and initializes the scanner.
+- Implemented and validated multiple rounds of strict breakout and strong signal logic as per user specifications.
+- Added detailed  and  logging to .
+- Performed a full code cleanup (Production Freeze), removing temporary test files (, , etc.) and unused code/imports across the 32-file project.
+- Verified the final 32-file structure, confirmed all hard rules were active, and ensured the server boots cleanly.
+- **Started a major 7-point enhancement plan**:
+  - Created 
+  - Created 
+  - Created 
+  - Created 
+  - Began modifying .
 
 **Earlier issues found/mentioned but not fixed**
-   - None. Issues that were identified (like missing features or startup crashes) were addressed in this session.
+   - None.
 
 **Known issue recurrence from previous fork**
   - N/A
@@ -114,70 +79,82 @@ To resolve a critical startup error, the agent replaced the original  (which use
 
 **Key Technical Concepts**
 - **Backend:** Node.js, Express.js
-- **Database:** MongoDB
-- **Data Source & API:** Angel One API (using both REST for historical data and a custom WebSocket for live market ticks)
-- **Architecture:** Highly modular, service-oriented architecture with distinct services for data handling, indicator calculation, scanning, signal generation, and risk management.
+- **Data Source & API:** Angel One API (REST for historical/scan data, WebSocket for live ticks).
+- **Architecture:** Highly modular, service-oriented architecture.
+- **Data Management:** In-memory caching only (no database).
+- **New Concepts:** Dynamic Universe Loading, Adaptive Filtering (for strikes and breakouts), System Health Monitoring (CPU/Event Loop).
 
 **key DB schema**
-- No explicit MongoDB models or schemas have been defined yet. The user's request mentioned using MongoDB for , , and , but implementation details are pending.
+  - No database is used.
 
 **changes in tech stack**
-  - None. The project uses the Node.js stack from the user's reference repository.
+  - None.
 
 **All files of reference**
-- : The root directory for the entire project. Contains all 95 source files.
-- : The main application entry point. It was modified to integrate all the services from the user's original repository.
-- : This is a critical file that was **completely replaced** by the agent. The original file used a  library constructor that was causing the application to crash. The new file uses a pure  library implementation to establish a stable connection.
-- All other 94 files were copied directly from the user's reference repo  to preserve original functionality.
+- **Newly Created:**
+  - : To fetch and manage the full list of NSE/F&O instruments.
+  - : To expose new system-level endpoints (, ).
+  - : To track CPU usage and event loop lag for overload protection.
+  - : To provide logic for dynamically tightening scan filters.
+- **To Be Modified:**
+  - : For the adaptive premium range.
+  - : For the upgraded runner validation logic.
+  - : For the enhanced priority bucket system.
+  - : To integrate the adaptive filter.
+  - : To use the dynamic universe loader.
+  - : To initialize and integrate all new services.
 
 **Areas that need refactoring**:
-- The project's dependency management, with over 90  files using relative  paths (e.g., ), is fragile. This was the source of several  errors that the agent had to patch. A more robust dependency injection or path aliasing strategy would improve maintainability, but this should not be done without user consent.
+- The current priority is to complete the in-progress feature implementation, not to perform additional refactoring.
 
 **key api endpoints**
-- : Provides real-time status of the WebSocket connection, scanner activity, and any errors.
-- : Intended to return the final list of actionable signals (BUY, SELL, etc.).
-- : An endpoint for testing the signal engine logic for a specific instrument.
+- 
+- 
+- **Upcoming:**
+  - 
+  - 
 
 **Critical Info for New Agent**
-- **PRIORITIZE USER'S ORIGINAL CODE:** The user is extremely insistent that no features from their GitHub repository be removed. The previous agent made this mistake and had to perform a full copy of 95 files to correct it. Do not simplify or refactor code without explicit permission.
-- **FULL FILE DUMPS ONLY:** When showing code changes, the user expects the entire file content, not just a patch or diff.
-- **WEBSOCKET REPLACEMENT:** Be aware that  is NOT the user's original code. It was replaced to fix a critical bug. While it works, you must validate that it meets all of the user's strict requirements for WebSocket handling (e.g., exponential backoff, max 50 subscriptions).
-- **GOAL IS LIVE PROOF:** The main objective is not just to build the code but to deploy it on Railway and provide concrete proof of it working during live market hours.
+- **Your immediate priority is to complete the 7-point enhancement plan from user message #265.** The implementation is currently partial and the app is broken.
+- **Resume work on **, then proceed to the other required modifications and integrations as outlined in the In progress Task List.
+- The user is highly specific. Adhere strictly to the logic and rules they provide (e.g., breakout conditions, strong signal criteria).
+- All code modifications must be done via full-file replacement.
+- **You must communicate with the user in Hinglish.**
 
 **documents and test reports created in this job**
-- 
+  - All temporary test files (, , etc.) were created and then deleted as part of the code freeze. Do not look for them.
 
-**Last 10 User Messages and any pending HUMAN messages**
-1. **User (Latest):** STRICT BACKEND DUMP ORDER... Har file jo change hogi — poori file replace karo. - User provides extremely strict rules for the final code dump, demanding full file replacements, not patches. They reiterate all functional requirements for the sniper engine, scanner, explosion engine, and WebSocket, and state the final condition is a system that behaves like a professional terminal.
-2. **User:** Ok bhai! Sab files ek saath dump kar raha hoon: - User acknowledges the agent will dump all files.
-3. **User:** Bhai ek ek file dal ke ruk mat jao dump all files - User is impatient and wants all files dumped at once, not one by one.
-4. **User:** Kuk kuyu gaye sab files niche dump karo (Hinglish for Why did you stop? Dump all files below) - User gets frustrated that the file dump stopped.
-5. **User:** Acknowledges the agent will dump all new and replaced files.
-6. **User:** Agar ho gaye to sab files jo nayi bani ho vo aur jo files replace hui ho vo sab puri files sirf patch nahi puri files niche dump karo (Hinglish) - User confirms that if all features are added, they want a full dump of all new and replaced files, not patches.
-7. **User:** Re-pastes the entire initial problem statement and asks if all features have been added without deleting old ones.
-8. **User:** Acknowledges the agent's summary and that the backend is complete.
-9. **User:** Re-pastes the entire problem statement for a second time, asking for confirmation that old features were not deleted.
-10. **User:** Ye jo tumne 21 files boli he replace karane ko... features Kam nahi Karna Hai add karne hain (Hinglish) - User expresses concern that the agent has reduced features, pointing out a file that went from 940 lines to 150 lines. They insist features should only be added, not removed.
+**Last 10 User Messages and any pending HUMAN messages** 
+- **User (265):** Ordered a massive 7-point enhancement to the system, including a full universe loader, adaptive strike/breakout filters, an upgraded runner engine, a CPU protection system, and a new WebSocket priority structure. **This is the current task.**
+- **User (261):** Ordered a final Git push after the production freeze. The agent guided the user on how to use the platform's Save to Github feature.
+- **User (255):** Requested a final runtime sanity check with specific simulation criteria, which the agent performed successfully.
+- **User (235):** Ordered a final Production Freeze, confirming all files, removing test scripts, and verifying code quality.
+- **User (189):** Ordered a final code cleanup and freeze, removing all test files and console logs.
+- **User (173):** Provided non-negotiable updates to the breakout and strong signal logic, making certain conditions mandatory and adding requirements for debug logging.
+- **User (117):** Demanded a strict tightening of breakout logic, calibration of strong signals, and a more robust runner engine filter.
+- **User (105):** Ordered a comprehensive 5-step dry simulation to stress-test the system, including instrument/strike scans, WebSocket load, and signal cooldown.
+- **User (55):** Demanded detailed, function-level proof for existing features and ordered the agent to add several missing modules (Strike Sweep Engine, Runner Engine, Dynamic WS Priority Manager, etc.).
+- **User (5):** Provided a highly detailed, 5-priority test plan for the newly architected system.
 
 **Project Health Check:**
-- **Broken:** The original  from the user's repo is non-functional in this environment.
+- **Broken:** Yes. The application is in a non-runnable state due to a partial implementation of a large feature set. New services have been created but are not integrated.
 - **Mocked:** None.
 
 **3rd Party Integrations**
-- **Angel One SmartAPI:** This is the primary integration for market data. The agent is using a mix of REST calls from the user's original code and a custom WebSocket implementation for live data. No  is required.
+- **Angel One SmartAPI:** Used for REST and WebSocket market data. This is not an LLM integration and does not use any special keys.
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: []
-  - Known regressions: An initial regression where features were removed was corrected. The only known deviation from the original repo is the  file, which was a necessary fix.
+  - Test files created: [] (Previous test files were deleted as part of the cleanup).
+  - Known regressions: N/A
 
 **Credentials to test flow:**
+- Credentials are in  and used automatically.
 - ANGEL_API_KEY: 
 - ANGEL_CLIENT_ID: 
 - ANGEL_PASSWORD: 
 - ANGEL_TOTP_SECRET: 
-- PORT: 
 
 **What agent forgot to execute**
-- The agent did not complete the user's explicit and repeated request to provide a full dump of all 95 project files. The last attempt was cut short.</analysis>
+The agent did not forget anything. It was correctly executing a large, multi-step user request and was interrupted mid-task. The next agent needs to pick up where the previous one left off.</analysis>
