@@ -28,6 +28,12 @@ class MarketScannerLoopService {
         this.activeTokens = new Set();
         this.idleTokens = new Set();
         this.strikeDiscoveryQueue = [];
+        
+        // 🔴 CPU PROTECTION MODES
+        this.reducedMode = false;
+        this.coreOnlyMode = false;
+        this.normalBatchInterval = 5000;
+        this.reducedBatchInterval = 15000;
     }
 
     async initialize() {
