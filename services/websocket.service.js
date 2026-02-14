@@ -108,6 +108,7 @@ class FocusWebSocketService {
             this.rateLimitHits = 0;
             
             this.startPing();
+            this.startRotation();
             this.resubscribeByPriority();
             
             this.connectionCallbacks.forEach(cb => {
