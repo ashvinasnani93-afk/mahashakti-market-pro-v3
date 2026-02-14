@@ -23,6 +23,26 @@ const marketStateService = require('./services/marketState.service');
 const globalRankingService = require('./services/globalRanking.service');
 const capitalGuardService = require('./services/capitalGuard.service');
 
+// Phase 4: Institutional Grade Services
+const masterSignalGuardService = require('./services/masterSignalGuard.service');
+const calendarService = require('./services/calendar.service');
+const clockSyncService = require('./services/clockSync.service');
+const breadthService = require('./services/breadth.service');
+const relativeStrengthService = require('./services/relativeStrength.service');
+const liquidityTierService = require('./services/liquidityTier.service');
+const gammaClusterService = require('./services/gammaCluster.service');
+const thetaEngineService = require('./services/thetaEngine.service');
+const expiryRolloverService = require('./services/expiryRollover.service');
+const panicKillSwitchService = require('./services/panicKillSwitch.service');
+const circuitBreakerService = require('./services/circuitBreaker.service');
+const volatilityRegimeService = require('./services/volatilityRegime.service');
+const crowdingDetectorService = require('./services/crowdingDetector.service');
+const correlationEngineService = require('./services/correlationEngine.service');
+const liquidityShockService = require('./services/liquidityShock.service');
+const drawdownGuardService = require('./services/drawdownGuard.service');
+const gapDayService = require('./services/gapDay.service');
+const ivSkewService = require('./services/ivSkew.service');
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
