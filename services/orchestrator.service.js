@@ -137,21 +137,28 @@ class OrchestratorService {
         const rsi = indicators.rsi || 50;
         const atrPercent = indicators.atrPercent || 0;
 
+        // 🔴 GET ADAPTIVE FILTER THRESHOLDS
+        const adaptiveFilters = adaptiveFilterService.getFilters();
+        const volumeThreshold = adaptiveFilters.volumeThreshold;
+        const atrThreshold = adaptiveFilters.atrThreshold;
+        const bullishRSIRange = adaptiveFilters.rsiRangeBullish;
+        const bearishRSIRange = adaptiveFilters.rsiRangeBearish;
+
         // ============================================
         // BULLISH BREAKOUT VALIDATION
         // ============================================
         // MANDATORY CONDITIONS (must ALL pass)
         const bullishMandatory = {
             priceBreakout: lastClose > highest5,
-            volumeConfirm: volumeRatio >= 1.5
+            volumeConfirm: volumeRatio >= volumeThreshold
         };
         const bullishMandatoryPassed = bullishMandatory.priceBreakout && bullishMandatory.volumeConfirm;
 
-        // OPTIONAL CONDITIONS (need 2 of 3)
+        // OPTIONAL CONDITIONS (need 2 of 3) - Using adaptive RSI/ATR
         const bullishOptional = {
             emaAlignment: ema20 > ema50,
-            rsiInZone: rsi >= 52 && rsi <= 75,
-            atrSafe: atrPercent < 4.0
+            rsiInZone: rsi >= bullishRSIRange.min && rsi <= bullishRSIRange.max,
+            atrSafe: atrPercent < atrThreshold
         };
         const bullishOptionalCount = Object.values(bullishOptional).filter(v => v === true).length;
         const bullishOptionalPassed = bullishOptionalCount >= 2;
@@ -161,12 +168,12 @@ class OrchestratorService {
         // Build bullish rejection reason
         let bullishRejection = [];
         if (!bullishMandatory.priceBreakout) bullishRejection.push('CLOSE_NOT_ABOVE_HIGHEST5');
-        if (!bullishMandatory.volumeConfirm) bullishRejection.push('VOLUME_BELOW_1.5x');
+        if (!bullishMandatory.volumeConfirm) bullishRejection.push(`VOLUME_BELOW_${volumeThreshold}x`);
         if (bullishMandatoryPassed && !bullishOptionalPassed) {
             bullishRejection.push(`OPTIONAL_${bullishOptionalCount}/3_NEED_2`);
             if (!bullishOptional.emaAlignment) bullishRejection.push('EMA_NOT_ALIGNED');
-            if (!bullishOptional.rsiInZone) bullishRejection.push('RSI_OUT_OF_52-75');
-            if (!bullishOptional.atrSafe) bullishRejection.push('ATR_ABOVE_4%');
+            if (!bullishOptional.rsiInZone) bullishRejection.push(`RSI_OUT_OF_${bullishRSIRange.min}-${bullishRSIRange.max}`);
+            if (!bullishOptional.atrSafe) bullishRejection.push(`ATR_ABOVE_${atrThreshold}%`);
         }
 
         // ============================================
@@ -175,7 +182,7 @@ class OrchestratorService {
         // MANDATORY CONDITIONS (must ALL pass)
         const bearishMandatory = {
             priceBreakout: lastClose < lowest5,
-            volumeConfirm: volumeRatio >= 1.5
+            volumeConfirm: volumeRatio >= volumeThreshold
         };
         const bearishMandatoryPassed = bearishMandatory.priceBreakout && bearishMandatory.volumeConfirm;
 
