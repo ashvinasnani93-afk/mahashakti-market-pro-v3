@@ -117,49 +117,87 @@ class OrchestratorService {
 
     checkBreakout(candles, indicators) {
         if (!candles || candles.length < 20) {
-            return { valid: false, type: null };
+            return { valid: false, type: null, failedConditions: ['INSUFFICIENT_DATA'] };
         }
 
         const recent = candles.slice(-20);
+        const last5 = candles.slice(-5);
         const closes = recent.map(c => c.close);
         const highs = recent.map(c => c.high);
         const lows = recent.map(c => c.low);
 
-        const resistance = Math.max(...highs.slice(0, -1));
-        const support = Math.min(...lows.slice(0, -1));
-
         const lastClose = closes[closes.length - 1];
         const prevClose = closes[closes.length - 2];
 
-        const breakoutUp = lastClose > resistance && prevClose <= resistance;
-        const breakoutDown = lastClose < support && prevClose >= support;
+        const last5Highs = last5.map(c => c.high);
+        const last5Lows = last5.map(c => c.low);
+        const highest5 = Math.max(...last5Highs.slice(0, -1));
+        const lowest5 = Math.min(...last5Lows.slice(0, -1));
 
-        const ema20 = indicators.ema20;
-        const ema50 = indicators.ema50;
+        const ema20 = indicators.ema20 || 0;
+        const ema50 = indicators.ema50 || 0;
+        const volumeRatio = indicators.volumeRatio || 0;
+        const rsi = indicators.rsi || 50;
+        const atrPercent = indicators.atrPercent || 0;
 
-        const emaBreakoutUp = lastClose > ema20 && prevClose <= ema20 && ema20 > ema50;
-        const emaBreakoutDown = lastClose < ema20 && prevClose >= ema20 && ema20 < ema50;
+        // STRICT BULLISH VALIDATION
+        const bullishConditions = {
+            emaAlignment: ema20 > ema50,
+            priceBreakout: lastClose > highest5,
+            volumeConfirm: volumeRatio >= 1.8,
+            rsiInRange: rsi >= 55 && rsi <= 70,
+            atrSafe: atrPercent < 3.5
+        };
 
-        const vwapBreakoutUp = indicators.vwap && lastClose > indicators.vwap && prevClose <= indicators.vwap;
-        const vwapBreakoutDown = indicators.vwap && lastClose < indicators.vwap && prevClose >= indicators.vwap;
+        const bullishFailures = [];
+        if (!bullishConditions.emaAlignment) bullishFailures.push('EMA20 <= EMA50');
+        if (!bullishConditions.priceBreakout) bullishFailures.push('Close <= Highest5');
+        if (!bullishConditions.volumeConfirm) bullishFailures.push('VolumeRatio < 1.8');
+        if (!bullishConditions.rsiInRange) bullishFailures.push('RSI not in 55-70');
+        if (!bullishConditions.atrSafe) bullishFailures.push('ATR% >= 3.5');
 
-        const bullishBreakout = breakoutUp || emaBreakoutUp || vwapBreakoutUp;
-        const bearishBreakout = breakoutDown || emaBreakoutDown || vwapBreakoutDown;
+        const bullishValid = Object.values(bullishConditions).every(v => v === true);
+
+        // STRICT BEARISH VALIDATION
+        const bearishConditions = {
+            emaAlignment: ema20 < ema50,
+            priceBreakout: lastClose < lowest5,
+            volumeConfirm: volumeRatio >= 1.8,
+            rsiInRange: rsi >= 30 && rsi <= 45,
+            atrSafe: atrPercent < 3.5
+        };
+
+        const bearishFailures = [];
+        if (!bearishConditions.emaAlignment) bearishFailures.push('EMA20 >= EMA50');
+        if (!bearishConditions.priceBreakout) bearishFailures.push('Close >= Lowest5');
+        if (!bearishConditions.volumeConfirm) bearishFailures.push('VolumeRatio < 1.8');
+        if (!bearishConditions.rsiInRange) bearishFailures.push('RSI not in 30-45');
+        if (!bearishConditions.atrSafe) bearishFailures.push('ATR% >= 3.5');
+
+        const bearishValid = Object.values(bearishConditions).every(v => v === true);
+
+        const valid = bullishValid || bearishValid;
+        const type = bullishValid ? 'BULLISH' : bearishValid ? 'BEARISH' : null;
+        const failedConditions = bullishValid ? [] : bearishValid ? [] : 
+            bullishFailures.length <= bearishFailures.length ? bullishFailures : bearishFailures;
 
         return {
-            valid: bullishBreakout || bearishBreakout,
-            type: bullishBreakout ? 'BULLISH' : bearishBreakout ? 'BEARISH' : null,
-            resistance,
-            support,
-            priceAboveResistance: breakoutUp,
-            priceBelowSupport: breakoutDown,
-            emaBreakout: emaBreakoutUp || emaBreakoutDown,
-            vwapBreakout: vwapBreakoutUp || vwapBreakoutDown,
+            valid,
+            type,
+            failedConditions,
+            conditions: type === 'BULLISH' ? bullishConditions : type === 'BEARISH' ? bearishConditions : null,
+            highest5,
+            lowest5,
+            priceAboveHighest5: lastClose > highest5,
+            priceBelowLowest5: lastClose < lowest5,
             details: {
                 lastClose,
                 prevClose,
                 ema20,
                 ema50,
+                volumeRatio,
+                rsi,
+                atrPercent,
                 vwap: indicators.vwap
             }
         };
