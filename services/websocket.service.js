@@ -146,6 +146,7 @@ class FocusWebSocketService {
 
     cleanup() {
         this.stopPing();
+        this.stopRotation();
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
