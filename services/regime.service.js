@@ -1,4 +1,5 @@
 const settings = require('../config/settings.config');
+const safetyService = require('./safety.service');
 
 class RegimeService {
     constructor() {
@@ -6,6 +7,21 @@ class RegimeService {
         this.regimeHistory = [];
         this.volatilityHistory = [];
         this.trendHistory = [];
+        
+        // 🔴 ADVANCED DAY TYPE DETECTION
+        this.dayType = null;
+        this.dayTypeHistory = [];
+        this.gapInfo = null;
+        
+        // Day type configurations
+        this.dayTypeConfig = {
+            trendDayThreshold: 1.5,       // 1.5% sustained move
+            rangeDayThreshold: 0.8,       // <0.8% range
+            gapThreshold: 0.5,            // 0.5% gap
+            crashThreshold: -2,           // 2% index drop
+            vixHighThreshold: 25,
+            expiryDays: [4]               // Thursday = 4
+        };
     }
 
     analyzeRegime(candles, indicators) {
