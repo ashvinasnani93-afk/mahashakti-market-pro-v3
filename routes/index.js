@@ -7,6 +7,7 @@ const signalRoutes = require('./signal.routes');
 const regimeRoutes = require('./regime.routes');
 const aggregatorRoutes = require('./aggregator.routes');
 const systemRoutes = require('./system.routes');
+const marketRoutes = require('./market.routes');
 
 router.use('/status', statusRoutes);
 router.use('/scanner', scannerRoutes);
@@ -14,6 +15,7 @@ router.use('/signal', signalRoutes);
 router.use('/regime', regimeRoutes);
 router.use('/aggregator', aggregatorRoutes);
 router.use('/system', systemRoutes);
+router.use('/market', marketRoutes);
 
 router.get('/', (req, res) => {
     res.json({
