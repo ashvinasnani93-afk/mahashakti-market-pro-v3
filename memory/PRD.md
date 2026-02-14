@@ -1,130 +1,132 @@
-# MAHASHAKTI V3 - Production Stock Market Analysis Backend
+# MAHASHAKTI V3 - Full Institutional Grade Backend
 
-## Original Problem Statement
-Build a high-performance, production-grade backend system for stock market analysis and signal generation. No frontend required.
+## Build Status: INSTITUTIONAL HARDENING COMPLETE ✅
 
-## What's Been Implemented
+## Architecture (55 Files)
 
-### Date: Feb 14, 2026 - PRE-LIVE HARDENING COMPLETE
+### Services (28)
+- `adaptiveFilter.service.js` - Adaptive breakout filters
+- `auth.service.js` - Angel One authentication
+- `candle.service.js` - Historical candle data
+- `capitalGuard.service.js` **[NEW]** - Capital protection core
+- `crossMarketContext.service.js` - Index bias + sector leadership
+- `explosion.service.js` - Explosion detection
+- `globalRanking.service.js` **[NEW]** - Real-time rankings (5sec update)
+- `indicator.service.js` - Technical indicators
+- `institutional.service.js` - Institutional activity
+- `marketAggregator.service.js` - Market aggregation
+- `marketScannerLoop.service.js` - Scanner loop engine
+- `marketState.service.js` **[NEW]** - Centralized state store
+- `oiIntelligence.service.js` - OI delta/PCR/buildup
+- `orchestrator.service.js` - Signal orchestration
+- `premiumMomentum.service.js` - Premium momentum
+- `ranking.service.js` - Basic ranking
+- `regime.service.js` **[ENHANCED]** - Day type detection
+- `riskReward.service.js` - Risk/reward calculation
+- `runnerEngine.service.js` **[ENHANCED]** - 4/6 validation + tier tracking
+- `safety.service.js` - VIX safety layer
+- `scanner.service.js` - Core scanner
+- `signalCooldown.service.js` - Signal cooldown
+- `strikeSelector.service.js` - Strike selection
+- `strikeSweep.service.js` - Strike sweep
+- `systemMonitor.service.js` - CPU/memory monitoring
+- `universeLoader.service.js` - Full market universe
+- `websocket.service.js` **[ENHANCED]** - 6-bucket intelligent rotation
 
-#### New Features Added:
+### Routes (8)
+- `aggregator.routes.js`
+- `index.js`
+- `market.routes.js` **[NEW]** - Unified market API
+- `regime.routes.js`
+- `scanner.routes.js`
+- `signal.routes.js`
+- `status.routes.js`
+- `system.routes.js`
 
-**1. Intraday Cumulative % Tracker**
-- Tracks Open → Current price movement
-- Trigger tiers: **8%, 12%, 15%, 20%**
-- Logs: `[RUNNER_ENGINE] 🔥 TIER 15% TRIGGERED | Token: xxx | Move: 15.23%`
-- Endpoint: `GET /api/aggregator/intraday-tiers?minTier=8`
+## Key Features
 
-**2. Premium Growth Tracker (Options)**
-- Tracks premium growth from entry
-- Trigger tiers: **50%, 100%, 200%, 500%, 1000%**
-- Logs: `[RUNNER_ENGINE] 💎 PREMIUM 100% TRIGGERED | Token: xxx | Gain: 102.5%`
-- Endpoint: `GET /api/aggregator/premium-tiers?minTier=50`
+### 1. Market State Foundation
+- Centralized real-time state for ALL active instruments
+- VWAP, Relative Strength, Intraday Range
+- Updated on every WebSocket tick
+- Reset daily at 9:15 AM
 
-**3. Memory Caps Enforced**
-- Explosion history: **Max 50 records per token** (was 200)
-- OI history: **Max 30 intervals per token** (was 50)
-- Global explosion history: **Max 500** (auto-trims to 400)
+### 2. Global Ranking Engine
+- Sorted arrays updated every 5 seconds
+- Rankings: Gainers, Losers, Range, Volume, RS, Momentum, Premium
+- NO full market rescan - reads from memory
 
-**4. Scanner Confirmation - Dynamic Bucket Only**
-- Confirmed: Scanner processes **only shortlisted dynamic bucket**
-- Log confirmation: `Active scan bucket: 4 tokens (NOT all 7965)`
-- Does NOT compute indicators for all instruments simultaneously
+### 3. Capital Protection (capitalGuard)
+- VIX Guard: Auto-downgrade STRONG signals when VIX > 25
+- Crash Guard: Suspend BUY when index drops > 2%
+- Spike Guard: Wait for confirmation after sudden 1.5% spike
+- Liquidity Guard: Reject low liquidity signals
+- Streak Guard: Reduce strength after 3 weak signals
 
-**5. System Load Endpoint**
-- `GET /api/system/load`
-- Returns: CPU %, RSS MB, Active scan count, WS status, Scanner mode
+### 4. Advanced Regime Detection
+- TREND_UP_DAY / TREND_DOWN_DAY
+- RANGE_DAY
+- GAP_UP_DAY / GAP_DOWN_DAY
+- EXPIRY_DAY
+- HIGH_VIX_DAY
+- CRASH_DAY
+- Signal adjustment based on day type
 
----
+### 5. Runner Engine (4/6 Validation)
+- Move ≥ 1.5% in 15 min
+- Volume ≥ 3x avg
+- Relative Strength ≥ 60 percentile
+- VWAP deviation sustained
+- Liquidity > threshold
+- ATR expanding
+- Tier tracking: 8%, 12%, 15%, 20%
 
-## Full Feature List
+### 6. WebSocket Intelligent Rotation 2.0
+Buckets (Priority order):
+1. CORE - Indices (never removed)
+2. ACTIVE_EQUITY - Explosive equity runners
+3. ACTIVE_OPTIONS - Explosive option strikes
+4. HIGH_RS - High relative strength stocks
+5. HIGH_OI - High OI acceleration strikes
+6. ROTATION - Remaining (rotates every 60 sec)
 
-### Universe & Data Source
-- Angel OpenAPI Master JSON (214K instruments)
-- Auto-refresh daily 8:30 AM IST
-- NSE Equity, F&O Stocks (225), Index Options (7,730)
+Max 50 subscriptions always enforced.
 
-### Signal Engine
-- Signal Types: BUY, SELL, STRONG_BUY, STRONG_SELL (NO WAIT)
-- Adaptive breakout filters
-- Runner Engine (4/5 strict validation)
-- 15-minute cooldown per symbol
+## Primary API Endpoints
 
-### Tracking Systems
-| Tracker | Tiers | Endpoint |
-|---------|-------|----------|
-| Intraday Equity | 8%, 12%, 15%, 20% | /api/aggregator/intraday-tiers |
-| Premium Options | 50%, 100%, 200%, 500%, 1000% | /api/aggregator/premium-tiers |
+### Dashboard Feed
+| Endpoint | Description |
+|----------|-------------|
+| GET /api/market/full-overview | Complete dashboard data |
+| GET /api/market/rankings | All ranking categories |
+| GET /api/market/regime | Day type + regime |
+| GET /api/market/protection | Capital guard state |
 
-### Intelligence Layers
-- OI Intelligence (Long/Short buildup, PCR)
-- Cross-Market Context (Index bias, Sector leadership)
-- VIX Safety Layer (Premium band adjustment)
-
-### Protection Systems
-- CPU Protection: 75% warning, 90% critical
-- Memory Caps: 50 snapshots/token, 30 OI intervals
-- WebSocket: 50 max subscriptions, 120s auto-rotate
-
----
-
-## Key API Endpoints
-
-### System APIs
+### System
 | Endpoint | Description |
 |----------|-------------|
 | GET /api/system/load | CPU, RSS, Active scan count |
 | GET /api/system/health | Full health metrics |
-| GET /api/system/universe | Universe stats |
-| GET /api/system/vix | VIX data & premium bands |
-| GET /api/system/context | Market bias & sectors |
-| GET /api/system/oi/pcr | PCR data |
+| GET /api/system/vix | VIX data |
 
-### Aggregator APIs
-| Endpoint | Description |
-|----------|-------------|
-| GET /api/aggregator/intraday-tiers | Equity runners by tier |
-| GET /api/aggregator/premium-tiers | Premium explosions by tier |
-| GET /api/aggregator/top-runners | Top 10 runners |
-| GET /api/aggregator/market-view | Full market view |
+## Hard Rules (ENFORCED)
+- ✅ Only BUY / SELL / STRONG_BUY / STRONG_SELL
+- ✅ NO WAIT signals
+- ✅ NO MongoDB
+- ✅ NO full market rescans (memory-based)
+- ✅ WS ≤ 50 always
+- ✅ Memory caps: 50 snapshots/token, 30 OI intervals
 
----
+## Current Stats
+- **Files:** 55
+- **Services:** 28
+- **Routes:** 8
+- **Universe:** 7,965 instruments
+- **RSS:** ~125MB
+- **WS:** 4/50
 
-## Memory Limits
-| Component | Limit |
-|-----------|-------|
-| RSS Total | < 200MB |
-| Snapshots per token | 50 |
-| OI intervals per token | 30 |
-| Explosion history | 500 |
-| WS subscriptions | 50 |
-
----
-
-## Pre-Live Checklist
-- [x] Intraday % tracker (8/12/15/20)
-- [x] Premium % tracker (50/100/200/500/1000)
-- [x] Memory caps enforced
-- [x] Scanner dynamic bucket confirmation
-- [x] /api/system/load endpoint
-- [ ] Live shadow proof (1 full session)
+## Pending
+- [ ] Live session proof
+- [ ] Memory creep monitoring (1 full session)
 - [ ] No WS disconnect test
-- [ ] No memory creep test
 - [ ] Telegram Bot (after live proof)
-
----
-
-## Credentials (in .env)
-- ANGEL_API_KEY: EU6E48uY
-- ANGEL_CLIENT_ID: A819201
-- ANGEL_PASSWORD: 2310
-- ANGEL_TOTP_SECRET: IOS2NLBN2NORL3K6KQ26TXCINY
-
----
-
-## Backlog
-1. **P0:** Live shadow proof (1 full trading session)
-2. **P1:** Railway deployment
-3. **P1:** Memory creep monitoring
-4. **P2:** Telegram Bot integration (after live proof)
-5. **P2:** NSE Equity filter optimization
