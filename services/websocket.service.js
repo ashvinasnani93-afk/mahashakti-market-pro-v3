@@ -709,8 +709,10 @@ class FocusWebSocketService {
         if (!Array.isArray(tokens)) tokens = [tokens];
         tokens.forEach(token => {
             if (!this.priorityBuckets.CORE.has(token)) {
-                this.priorityBuckets.ACTIVE.delete(token);
-                this.priorityBuckets.EXPLOSION.delete(token);
+                this.priorityBuckets.ACTIVE_EQUITY.delete(token);
+                this.priorityBuckets.ACTIVE_OPTIONS.delete(token);
+                if (this.priorityBuckets.HIGH_RS) this.priorityBuckets.HIGH_RS.delete(token);
+                if (this.priorityBuckets.HIGH_OI) this.priorityBuckets.HIGH_OI.delete(token);
                 this.priorityBuckets.ROTATION.add(token);
             }
         });
@@ -732,12 +734,13 @@ class FocusWebSocketService {
 
     checkForLeaks() {
         const subscribed = new Set(this.subscriptions.keys());
-        const inBuckets = new Set([
-            ...this.priorityBuckets.CORE,
-            ...this.priorityBuckets.ACTIVE,
-            ...this.priorityBuckets.EXPLOSION,
-            ...this.priorityBuckets.ROTATION
-        ]);
+        const inBuckets = new Set();
+        
+        for (const bucket of Object.values(this.priorityBuckets)) {
+            for (const token of bucket) {
+                inBuckets.add(token);
+            }
+        }
 
         const leaks = [...subscribed].filter(t => !inBuckets.has(t));
         
