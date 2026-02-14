@@ -298,6 +298,8 @@ process.on('SIGINT', () => {
     marketScannerLoopService.stop();
     scannerService.stop();
     systemMonitorService.stop();
+    crossMarketContextService.stop();
+    safetyService.stop();
     wsService.disconnect();
     process.exit(0);
 });
@@ -307,6 +309,8 @@ process.on('SIGTERM', () => {
     marketScannerLoopService.stop();
     scannerService.stop();
     systemMonitorService.stop();
+    crossMarketContextService.stop();
+    safetyService.stop();
     wsService.disconnect();
     process.exit(0);
 });
