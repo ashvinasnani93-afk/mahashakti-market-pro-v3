@@ -458,42 +458,85 @@ class FocusWebSocketService {
     promoteToExplosion(tokens) {
         if (!Array.isArray(tokens)) tokens = [tokens];
         
-        // Keep only top 10 in EXPLOSION bucket
+        // Keep only top 10 in ACTIVE_OPTIONS bucket
         tokens.forEach(token => {
             Object.values(this.priorityBuckets).forEach(bucket => bucket.delete(token));
-            this.priorityBuckets.EXPLOSION.add(token);
+            this.priorityBuckets.ACTIVE_OPTIONS.add(token);
         });
 
         // Trim to top 10
-        if (this.priorityBuckets.EXPLOSION.size > 10) {
-            const explosionArray = Array.from(this.priorityBuckets.EXPLOSION);
-            this.priorityBuckets.EXPLOSION = new Set(explosionArray.slice(0, 10));
+        if (this.priorityBuckets.ACTIVE_OPTIONS.size > 10) {
+            const arr = Array.from(this.priorityBuckets.ACTIVE_OPTIONS);
+            this.priorityBuckets.ACTIVE_OPTIONS = new Set(arr.slice(0, 10));
         }
 
         this.enforceSubscriptionLimit();
         this.syncSubscriptions();
-        console.log(`[WS] Promoted ${tokens.length} tokens to EXPLOSION bucket (Total: ${this.priorityBuckets.EXPLOSION.size}/10)`);
+        console.log(`[WS] Promoted ${tokens.length} tokens to ACTIVE_OPTIONS bucket (Total: ${this.priorityBuckets.ACTIVE_OPTIONS.size}/10)`);
     }
 
     promoteToActive(tokens) {
         if (!Array.isArray(tokens)) tokens = [tokens];
         
-        // Keep only top 20 in ACTIVE bucket
+        // Keep only top 15 in ACTIVE_EQUITY bucket
         tokens.forEach(token => {
             if (!this.priorityBuckets.CORE.has(token)) {
                 this.priorityBuckets.ROTATION.delete(token);
-                this.priorityBuckets.EXPLOSION.delete(token);
-                this.priorityBuckets.ACTIVE.add(token);
+                if (this.priorityBuckets.HIGH_RS) this.priorityBuckets.HIGH_RS.delete(token);
+                if (this.priorityBuckets.HIGH_OI) this.priorityBuckets.HIGH_OI.delete(token);
+                this.priorityBuckets.ACTIVE_EQUITY.add(token);
             }
         });
 
-        // Trim to top 20
-        if (this.priorityBuckets.ACTIVE.size > 20) {
-            const toRemove = this.evictLowActivity(this.priorityBuckets.ACTIVE, this.priorityBuckets.ACTIVE.size - 20);
+        // Trim to top 15
+        if (this.priorityBuckets.ACTIVE_EQUITY.size > 15) {
+            const toRemove = this.evictLowActivity(this.priorityBuckets.ACTIVE_EQUITY, this.priorityBuckets.ACTIVE_EQUITY.size - 15);
             toRemove.forEach(token => {
-                this.priorityBuckets.ACTIVE.delete(token);
+                this.priorityBuckets.ACTIVE_EQUITY.delete(token);
                 this.priorityBuckets.ROTATION.add(token);
             });
+        }
+
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+    }
+
+    // 🔴 NEW: Promote to High Relative Strength bucket
+    promoteToHighRS(tokens) {
+        if (!Array.isArray(tokens)) tokens = [tokens];
+        
+        tokens.forEach(token => {
+            if (!this.priorityBuckets.CORE.has(token) && !this.priorityBuckets.ACTIVE_EQUITY.has(token)) {
+                this.priorityBuckets.ROTATION.delete(token);
+                this.priorityBuckets.HIGH_RS.add(token);
+            }
+        });
+
+        // Trim to top 10
+        if (this.priorityBuckets.HIGH_RS.size > 10) {
+            const arr = Array.from(this.priorityBuckets.HIGH_RS);
+            this.priorityBuckets.HIGH_RS = new Set(arr.slice(0, 10));
+        }
+
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+    }
+
+    // 🔴 NEW: Promote to High OI bucket
+    promoteToHighOI(tokens) {
+        if (!Array.isArray(tokens)) tokens = [tokens];
+        
+        tokens.forEach(token => {
+            if (!this.priorityBuckets.ACTIVE_OPTIONS.has(token)) {
+                this.priorityBuckets.ROTATION.delete(token);
+                this.priorityBuckets.HIGH_OI.add(token);
+            }
+        });
+
+        // Trim to top 10
+        if (this.priorityBuckets.HIGH_OI.size > 10) {
+            const arr = Array.from(this.priorityBuckets.HIGH_OI);
+            this.priorityBuckets.HIGH_OI = new Set(arr.slice(0, 10));
         }
 
         this.enforceSubscriptionLimit();
