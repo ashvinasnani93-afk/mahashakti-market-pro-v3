@@ -191,6 +191,7 @@ class ScannerService {
         return {
             instrument,
             indicators,
+            isBreakoutCandidate,
             signal: analysisResult.signal,
             analysis: analysisResult.analysis,
             livePrice,
