@@ -147,12 +147,20 @@ class UniverseLoaderService {
     parseNSEEquity() {
         if (!this.masterData) return;
 
-        const nseStocks = this.masterData.filter(item => 
-            item.exch_seg === 'NSE' && 
-            item.instrumenttype === '' &&
-            item.symbol &&
-            !item.symbol.includes('-')
-        );
+        // Filter NSE Cash segment stocks (EQ/BE series)
+        const nseStocks = this.masterData.filter(item => {
+            const exchSeg = item.exch_seg || '';
+            const instType = (item.instrumenttype || '').toUpperCase();
+            const symbol = item.symbol || '';
+            
+            // NSE Cash segment - either EQ instrumenttype or empty for cash stocks
+            return exchSeg === 'NSE' && 
+                   (instType === '' || instType === 'EQ') &&
+                   symbol &&
+                   !symbol.includes('-') &&
+                   !symbol.includes('_') &&
+                   symbol.length <= 20;
+        });
 
         nseStocks.forEach(item => {
             const instrument = {
