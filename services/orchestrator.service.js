@@ -78,6 +78,32 @@ class OrchestratorService {
         const signal = this.generateSignal(analysisData);
 
         if (signal) {
+            if (this.cooldownEnabled) {
+                const cooldownCheck = signalCooldownService.canEmitSignal(
+                    instrument.token,
+                    signal.signal,
+                    signal.direction
+                );
+
+                if (!cooldownCheck.allowed) {
+                    return {
+                        instrument,
+                        signal: null,
+                        reason: `Signal blocked: ${cooldownCheck.reason}`,
+                        cooldownRemainingMs: cooldownCheck.remainingMs,
+                        analysis: analysisData,
+                        timestamp: Date.now()
+                    };
+                }
+
+                signalCooldownService.recordSignal(
+                    instrument.token,
+                    signal.signal,
+                    signal.direction,
+                    { price: signal.price, strength: signal.strength }
+                );
+            }
+
             this.recordSignal(instrument.token, signal);
         }
 
