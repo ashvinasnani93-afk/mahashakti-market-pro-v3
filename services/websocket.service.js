@@ -10,12 +10,14 @@ class FocusWebSocketService {
         this.isConnecting = false;
         
         this.subscriptions = new Map();
-        // 🔴 PRIORITY BUCKET STRUCTURE: CORE | ACTIVE | EXPLOSION | ROTATION
+        // 🔴 PRIORITY BUCKET STRUCTURE V2.0: Intelligent Rotation
         this.priorityBuckets = {
-            CORE: new Set(),      // Indices only - never unsubscribed
-            ACTIVE: new Set(),    // Top 20 active stocks
-            EXPLOSION: new Set(), // Top 10 explosion strikes
-            ROTATION: new Set()   // Remaining stocks - rotates every 120 sec
+            CORE: new Set(),           // Indices only - never unsubscribed
+            ACTIVE_EQUITY: new Set(),  // Explosive equity runners
+            ACTIVE_OPTIONS: new Set(), // Explosive option strikes
+            HIGH_RS: new Set(),        // High relative strength stocks
+            HIGH_OI: new Set(),        // High OI acceleration strikes
+            ROTATION: new Set()        // Remaining - rotates every 60 sec
         };
         this.tokenActivity = new Map();
         this.lastActivityCheck = Date.now();
@@ -42,7 +44,7 @@ class FocusWebSocketService {
             minConnectInterval: 5000,
             pingInterval: 30000,
             rateLimitCooldown: 30000,
-            rotationIntervalSec: 120
+            rotationIntervalSec: 60
         };
         
         this.subscriptionLeakGuard = new Set();
