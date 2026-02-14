@@ -101,12 +101,19 @@ class ScannerService {
 
         const watchlist = instruments.getAll();
         const analysisResults = [];
+        let breakoutCandidates = 0;
+        let currentVolumeThreshold = 1.8;
 
+        // FIRST PASS: Initial scan with base threshold
         for (const instrument of watchlist) {
             try {
-                const result = await this.scanInstrument(instrument);
+                const result = await this.scanInstrument(instrument, currentVolumeThreshold);
                 this.scanResults.set(instrument.token, result);
                 analysisResults.push(result);
+
+                if (result.isBreakoutCandidate) {
+                    breakoutCandidates++;
+                }
 
                 if (result.signal) {
                     this.scanStats.signalsGenerated++;
@@ -118,24 +125,59 @@ class ScannerService {
             await this.delay(settings.scanner.apiDelayMs);
         }
 
+        // SANITY FILTER: If breakout candidates > 20%, tighten filter
+        const candidatePercent = (breakoutCandidates / watchlist.length) * 100;
+        
+        if (candidatePercent > 20) {
+            console.log(`[SCANNER] Too many candidates (${breakoutCandidates}/${watchlist.length} = ${candidatePercent.toFixed(1)}%). Tightening filter...`);
+            currentVolumeThreshold = 2.0;
+            
+            // SECOND PASS: Re-filter with stricter threshold
+            let filteredCandidates = 0;
+            for (const result of analysisResults) {
+                if (result.isBreakoutCandidate) {
+                    const volumeRatio = result.indicators?.volumeRatio || 0;
+                    if (volumeRatio < currentVolumeThreshold) {
+                        result.isBreakoutCandidate = false;
+                        result.signal = null;
+                        result.filterReason = 'DYNAMIC_VOLUME_FILTER';
+                    } else {
+                        filteredCandidates++;
+                    }
+                }
+            }
+            
+            console.log(`[SCANNER] After filter: ${filteredCandidates} candidates (threshold: ${currentVolumeThreshold}x volume)`);
+            this.scanStats.dynamicFilterApplied = true;
+            this.scanStats.volumeThresholdUsed = currentVolumeThreshold;
+        } else {
+            this.scanStats.dynamicFilterApplied = false;
+            this.scanStats.volumeThresholdUsed = currentVolumeThreshold;
+        }
+
         rankingService.rankInstruments(analysisResults);
 
         this.updateBreadth(analysisResults);
 
         const duration = Date.now() - startTime;
         this.scanStats.lastScanDuration = duration;
+        this.scanStats.breakoutCandidates = breakoutCandidates;
 
         const signals = orchestratorService.getActiveSignals();
-        console.log(`[SCANNER] Scan complete in ${duration}ms. Found ${signals.length} active signals.`);
+        console.log(`[SCANNER] Scan complete in ${duration}ms. Candidates: ${breakoutCandidates}, Signals: ${signals.length}`);
     }
 
-    async scanInstrument(instrument) {
+    async scanInstrument(instrument, volumeThreshold = 1.8) {
         const mtfCandles = await candleService.getMultiTimeframeCandles(
             instrument.token,
             instrument.exchange
         );
 
         const indicators = indicatorService.getFullIndicators(mtfCandles.m5);
+        
+        // Mark if this is a breakout candidate
+        const isBreakoutCandidate = indicators.volumeRatio >= volumeThreshold && 
+            (indicators.rsi >= 55 || indicators.rsi <= 45);
         
         const analysisResult = await orchestratorService.analyzeInstrument(
             instrument,
