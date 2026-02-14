@@ -140,41 +140,43 @@ class OrchestratorService {
         const rsi = indicators.rsi || 50;
         const atrPercent = indicators.atrPercent || 0;
 
-        // STRICT BULLISH VALIDATION
+        // STRICT BULLISH VALIDATION (Relaxed RSI range)
         const bullishConditions = {
             emaAlignment: ema20 > ema50,
             priceBreakout: lastClose > highest5,
-            volumeConfirm: volumeRatio >= 1.8,
-            rsiInRange: rsi >= 55 && rsi <= 70,
-            atrSafe: atrPercent < 3.5
+            volumeConfirm: volumeRatio >= 1.5,
+            rsiInRange: rsi >= 52 && rsi <= 75,
+            atrSafe: atrPercent < 4.0
         };
 
         const bullishFailures = [];
         if (!bullishConditions.emaAlignment) bullishFailures.push('EMA20 <= EMA50');
         if (!bullishConditions.priceBreakout) bullishFailures.push('Close <= Highest5');
-        if (!bullishConditions.volumeConfirm) bullishFailures.push('VolumeRatio < 1.8');
-        if (!bullishConditions.rsiInRange) bullishFailures.push('RSI not in 55-70');
-        if (!bullishConditions.atrSafe) bullishFailures.push('ATR% >= 3.5');
+        if (!bullishConditions.volumeConfirm) bullishFailures.push('VolumeRatio < 1.5');
+        if (!bullishConditions.rsiInRange) bullishFailures.push('RSI not in 52-75');
+        if (!bullishConditions.atrSafe) bullishFailures.push('ATR% >= 4.0');
 
-        const bullishValid = Object.values(bullishConditions).every(v => v === true);
+        const bullishPassCount = Object.values(bullishConditions).filter(v => v === true).length;
+        const bullishValid = bullishPassCount >= 4; // Need 4 out of 5 conditions
 
-        // STRICT BEARISH VALIDATION
+        // STRICT BEARISH VALIDATION (Relaxed RSI range)
         const bearishConditions = {
             emaAlignment: ema20 < ema50,
             priceBreakout: lastClose < lowest5,
-            volumeConfirm: volumeRatio >= 1.8,
-            rsiInRange: rsi >= 30 && rsi <= 45,
-            atrSafe: atrPercent < 3.5
+            volumeConfirm: volumeRatio >= 1.5,
+            rsiInRange: rsi >= 25 && rsi <= 48,
+            atrSafe: atrPercent < 4.0
         };
 
         const bearishFailures = [];
         if (!bearishConditions.emaAlignment) bearishFailures.push('EMA20 >= EMA50');
         if (!bearishConditions.priceBreakout) bearishFailures.push('Close >= Lowest5');
-        if (!bearishConditions.volumeConfirm) bearishFailures.push('VolumeRatio < 1.8');
-        if (!bearishConditions.rsiInRange) bearishFailures.push('RSI not in 30-45');
-        if (!bearishConditions.atrSafe) bearishFailures.push('ATR% >= 3.5');
+        if (!bearishConditions.volumeConfirm) bearishFailures.push('VolumeRatio < 1.5');
+        if (!bearishConditions.rsiInRange) bearishFailures.push('RSI not in 25-48');
+        if (!bearishConditions.atrSafe) bearishFailures.push('ATR% >= 4.0');
 
-        const bearishValid = Object.values(bearishConditions).every(v => v === true);
+        const bearishPassCount = Object.values(bearishConditions).filter(v => v === true).length;
+        const bearishValid = bearishPassCount >= 4; // Need 4 out of 5 conditions
 
         const valid = bullishValid || bearishValid;
         const type = bullishValid ? 'BULLISH' : bearishValid ? 'BEARISH' : null;
@@ -186,6 +188,7 @@ class OrchestratorService {
             type,
             failedConditions,
             conditions: type === 'BULLISH' ? bullishConditions : type === 'BEARISH' ? bearishConditions : null,
+            passCount: type === 'BULLISH' ? bullishPassCount : type === 'BEARISH' ? bearishPassCount : 0,
             highest5,
             lowest5,
             priceAboveHighest5: lastClose > highest5,
