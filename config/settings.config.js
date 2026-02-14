@@ -1,8 +1,13 @@
 module.exports = {
     scanner: {
         scanIntervalMs: 60000,
+        batchSize: 20,
+        batchIntervalMs: 5000,
+        batchDelayMs: 500,
+        apiDelayMs: 100,
         maxConcurrentScans: 5,
-        apiDelayMs: 200
+        volumeSpikeThreshold: 2,
+        wsRotationIntervalMs: 30000
     },
     
     websocket: {
@@ -72,7 +77,26 @@ module.exports = {
         volumeAccelerationRatio: 3,
         oiDeltaThreshold: 5,
         optionRangeExpansion: 2,
-        detectionWindowMinutes: 60
+        detectionWindowMinutes: 60,
+        bigMoverThreshold: 15,
+        topRunnerThreshold: 20
+    },
+    
+    premiumMomentum: {
+        delta5mThreshold: 5,
+        delta15mThreshold: 12,
+        volumeThreshold: 200,
+        oiThreshold: 10,
+        accelerationScoreThreshold: 60
+    },
+    
+    strikes: {
+        minPremium: 3,
+        maxPremium: 650,
+        minVolume: 1000,
+        strikesAroundATM: 5,
+        optimalPremiumMin: 50,
+        optimalPremiumMax: 200
     },
     
     institutional: {
@@ -114,5 +138,11 @@ module.exports = {
         closeHour: 15,
         closeMinute: 30,
         preOpenMinutes: 15
+    },
+    
+    aggregator: {
+        cacheExpiryMs: 5000,
+        maxSignalsPerCategory: 20,
+        maxExplosionsDisplay: 20
     }
 };
