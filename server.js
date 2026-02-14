@@ -11,6 +11,9 @@ const explosionService = require('./services/explosion.service');
 const premiumMomentumService = require('./services/premiumMomentum.service');
 const candleService = require('./services/candle.service');
 const marketAggregatorService = require('./services/marketAggregator.service');
+const strikeSweepService = require('./services/strikeSweep.service');
+const runnerEngineService = require('./services/runnerEngine.service');
+const signalCooldownService = require('./services/signalCooldown.service');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
