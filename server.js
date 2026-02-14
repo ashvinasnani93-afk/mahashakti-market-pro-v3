@@ -164,23 +164,47 @@ async function startServer() {
         console.log('[7/10] ✓ Runner Engine initialized');
         console.log(`      Early Move Detection: 1.5%`);
         console.log(`      Volume Spike: 3x`);
-        console.log(`      Strict Validation: 4/5 rules`);
+        console.log(`      Strict Validation: 4/6 rules`);
+        console.log(`      Tier Tracking: 8% | 12% | 15% | 20%`);
         console.log('');
 
-        console.log('[8/13] Initializing OI Intelligence Layer...');
+        console.log('[8/16] Initializing Market State Foundation...');
+        marketStateService.initialize();
+        console.log('[8/16] ✓ Market State initialized');
+        console.log(`      Centralized State Store: Active`);
+        console.log(`      VWAP/RelativeStrength: Active`);
+        console.log('');
+
+        console.log('[9/16] Initializing Global Ranking Engine...');
+        globalRankingService.initialize();
+        console.log('[9/16] ✓ Global Ranking initialized');
+        console.log(`      Update Interval: 5 seconds`);
+        console.log(`      Rankings: Gainers | Losers | Momentum | Volume | RS`);
+        console.log('');
+
+        console.log('[10/16] Initializing OI Intelligence Layer...');
         oiIntelligenceService.initialize();
-        console.log('[8/13] ✓ OI Intelligence initialized');
+        console.log('[10/16] ✓ OI Intelligence initialized');
         console.log(`      OI Delta Tracking: Active`);
         console.log(`      PCR Monitoring: NIFTY | BANKNIFTY | FINNIFTY`);
         console.log(`      Buildup Detection: LONG | SHORT | COVERING | UNWINDING`);
         console.log('');
 
-        console.log('[9/13] Initializing Cross-Market Context Engine...');
+        console.log('[11/16] Initializing Cross-Market Context Engine...');
         crossMarketContextService.initialize();
-        console.log('[9/13] ✓ Cross-Market Context initialized');
+        console.log('[11/16] ✓ Cross-Market Context initialized');
         console.log(`      Index Bias Tracking: Active`);
         console.log(`      Sector Leadership: Active`);
         console.log(`      Context Weight: 20% max influence`);
+        console.log('');
+
+        console.log('[12/16] Initializing Capital Guard...');
+        capitalGuardService.initialize();
+        console.log('[12/16] ✓ Capital Guard initialized');
+        console.log(`      VIX Guard: Active`);
+        console.log(`      Crash Guard: Active`);
+        console.log(`      Spike Guard: Active`);
+        console.log(`      Liquidity Guard: Active`);
         console.log('');
 
         console.log('[10/13] Initializing VIX Safety Layer...');
