@@ -400,12 +400,9 @@ class UniverseLoaderService {
         const maxStrike = atmStrike + (window * strikeGap);
 
         const result = [];
-        const currentExpiryStr = this.currentExpiry ? this.formatExpiry(this.currentExpiry) : null;
 
         optionsMap.forEach((opt, key) => {
-            if (opt.strikePrice >= minStrike && 
-                opt.strikePrice <= maxStrike &&
-                (!currentExpiryStr || opt.expiry === currentExpiryStr)) {
+            if (opt.strikePrice >= minStrike && opt.strikePrice <= maxStrike) {
                 result.push({
                     ...opt,
                     moneyness: ((opt.strikePrice - atmStrike) / atmStrike) * 100,
