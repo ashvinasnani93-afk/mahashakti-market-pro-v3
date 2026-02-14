@@ -388,6 +388,8 @@ class FocusWebSocketService {
         const allTokens = new Set([
             ...this.priorityBuckets.CORE,
             ...this.priorityBuckets.ACTIVE,
+            ...this.priorityBuckets.VOLUME_LEADERS,
+            ...this.priorityBuckets.EXPLOSION,
             ...this.priorityBuckets.ROTATION
         ]);
 
