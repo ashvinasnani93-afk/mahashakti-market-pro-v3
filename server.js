@@ -231,6 +231,30 @@ function logActiveBuckets() {
     console.log('');
 }
 
+// 🔴 CPU PROTECTION SYSTEM
+function setupCPUProtection() {
+    // CPU > 75% -> Reduce scan frequency
+    systemMonitorService.onWarning((health) => {
+        console.log(`[CPU_PROTECTION] WARNING: CPU ${health.cpu.current}% - Reducing scan frequency`);
+        marketScannerLoopService.setReducedMode(true);
+    });
+
+    // CPU > 90% -> CORE INDEX ONLY MODE
+    systemMonitorService.onCritical((health) => {
+        console.log(`[CPU_PROTECTION] CRITICAL: CPU ${health.cpu.current}% - Switching to CORE INDEX ONLY`);
+        marketScannerLoopService.setCoreOnlyMode(true);
+        wsService.enableCoreOnlyMode();
+    });
+
+    // CPU normal -> Resume normal operations
+    systemMonitorService.onNormal((health) => {
+        console.log(`[CPU_PROTECTION] NORMAL: CPU ${health.cpu.current}% - Resuming normal operations`);
+        marketScannerLoopService.setReducedMode(false);
+        marketScannerLoopService.setCoreOnlyMode(false);
+        wsService.disableCoreOnlyMode();
+    });
+}
+
 setInterval(() => {
     wsService.checkForLeaks();
 }, 60000);
