@@ -10,8 +10,11 @@ class FocusWebSocketService {
         this.isConnecting = false;
         
         this.subscriptions = new Map();
-        this.focusedTokens = new Set();
-        this.priorityTokens = new Set();
+        this.priorityBuckets = {
+            CORE: new Set(),
+            ACTIVE: new Set(),
+            ROTATION: new Set()
+        };
         
         this.priceCallbacks = [];
         this.connectionCallbacks = [];
@@ -26,12 +29,22 @@ class FocusWebSocketService {
         this.livePrices = new Map();
         this.lastUpdateTime = new Map();
         
-        this.wsSettings = settings.websocket;
+        this.wsSettings = settings.websocket || {
+            maxSubscriptions: 50,
+            maxReconnectAttempts: 10,
+            baseReconnectDelay: 1000,
+            maxReconnectDelay: 60000,
+            minConnectInterval: 5000,
+            pingInterval: 30000,
+            rateLimitCooldown: 30000
+        };
+        
+        this.subscriptionLeakGuard = new Set();
     }
 
     async connect() {
         if (this.isConnecting) {
-            console.log('[WS] Connection already in progress - singleton guard');
+            console.log('[WS] Connection already in progress - singleton guard active');
             return false;
         }
 
@@ -68,7 +81,6 @@ class FocusWebSocketService {
             });
 
             this.ws.binaryType = 'arraybuffer';
-
             this.setupEventHandlers();
             
             return true;
@@ -89,7 +101,7 @@ class FocusWebSocketService {
             this.rateLimitHits = 0;
             
             this.startPing();
-            this.resubscribeAll();
+            this.resubscribeByPriority();
             
             this.connectionCallbacks.forEach(cb => {
                 try { cb({ connected: true }); } catch (e) {}
@@ -108,7 +120,7 @@ class FocusWebSocketService {
             
             if (code === 429) {
                 this.rateLimitHits++;
-                console.log(`[WS] Rate limit hit #${this.rateLimitHits} - applying cooldown`);
+                console.log(`[WS] Rate limit hit #${this.rateLimitHits} - applying extended cooldown`);
             }
             
             this.connectionCallbacks.forEach(cb => {
@@ -138,7 +150,7 @@ class FocusWebSocketService {
 
     scheduleReconnect() {
         if (this.reconnectAttempts >= this.wsSettings.maxReconnectAttempts) {
-            console.log('[WS] Max reconnect attempts reached - giving up');
+            console.log('[WS] Max reconnect attempts reached - manual intervention required');
             return;
         }
 
@@ -232,18 +244,13 @@ class FocusWebSocketService {
             let close = ltp;
             let avgPrice = 0;
             let oi = 0;
-            let oiDayHigh = 0;
-            let oiDayLow = 0;
 
             if (buffer.byteLength >= 50) {
-                const lastTradedQty = Number(view.getBigInt64(30, true));
                 avgPrice = view.getInt32(38, true) / 100;
                 volume = Number(view.getBigInt64(42, true));
             }
 
             if (buffer.byteLength >= 130) {
-                const totalBuyQty = view.getFloat64(50, true);
-                const totalSellQty = view.getFloat64(58, true);
                 open = view.getInt32(66, true) / 100;
                 high = view.getInt32(70, true) / 100;
                 low = view.getInt32(74, true) / 100;
@@ -252,8 +259,6 @@ class FocusWebSocketService {
 
             if (buffer.byteLength >= 164) {
                 oi = Number(view.getBigInt64(130, true));
-                oiDayHigh = Number(view.getBigInt64(138, true));
-                oiDayLow = Number(view.getBigInt64(146, true));
             }
 
             return {
@@ -267,8 +272,6 @@ class FocusWebSocketService {
                 volume,
                 avgPrice,
                 oi,
-                oiDayHigh,
-                oiDayLow,
                 timestamp: Date.now(),
                 exchangeTimestamp
             };
@@ -277,25 +280,75 @@ class FocusWebSocketService {
         }
     }
 
-    subscribe(tokens, exchangeType = 1, mode = 3) {
+    subscribeWithPriority(tokens, priority = 'ROTATION') {
         if (!Array.isArray(tokens)) tokens = [tokens];
-        
-        const availableSlots = this.wsSettings.maxSubscriptions - this.subscriptions.size;
-        
-        if (tokens.length > availableSlots) {
-            console.log(`[WS] Subscription limit: can only add ${availableSlots} more (max ${this.wsSettings.maxSubscriptions})`);
-            
-            if (availableSlots <= 0) {
-                this.evictLowPrioritySubscriptions(tokens.length);
-            }
-            
-            tokens = tokens.slice(0, Math.max(availableSlots, 0));
+        if (tokens.length === 0) return;
+
+        tokens.forEach(token => {
+            Object.values(this.priorityBuckets).forEach(bucket => bucket.delete(token));
+            this.priorityBuckets[priority].add(token);
+        });
+
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+    }
+
+    enforceSubscriptionLimit() {
+        const maxSubs = this.wsSettings.maxSubscriptions;
+        const coreCount = this.priorityBuckets.CORE.size;
+        const activeCount = this.priorityBuckets.ACTIVE.size;
+        const rotationCount = this.priorityBuckets.ROTATION.size;
+
+        const total = coreCount + activeCount + rotationCount;
+
+        if (total <= maxSubs) return;
+
+        let excess = total - maxSubs;
+
+        if (excess > 0 && rotationCount > 0) {
+            const rotationArray = Array.from(this.priorityBuckets.ROTATION);
+            const toRemove = rotationArray.slice(0, Math.min(excess, rotationCount));
+            toRemove.forEach(token => this.priorityBuckets.ROTATION.delete(token));
+            excess -= toRemove.length;
         }
 
-        if (tokens.length === 0) return;
+        if (excess > 0 && activeCount > 0) {
+            const activeArray = Array.from(this.priorityBuckets.ACTIVE);
+            const toRemove = activeArray.slice(0, Math.min(excess, activeCount));
+            toRemove.forEach(token => this.priorityBuckets.ACTIVE.delete(token));
+            excess -= toRemove.length;
+        }
+
+        console.log(`[WS] Enforced limit: CORE=${this.priorityBuckets.CORE.size}, ACTIVE=${this.priorityBuckets.ACTIVE.size}, ROTATION=${this.priorityBuckets.ROTATION.size}`);
+    }
+
+    syncSubscriptions() {
+        const allTokens = new Set([
+            ...this.priorityBuckets.CORE,
+            ...this.priorityBuckets.ACTIVE,
+            ...this.priorityBuckets.ROTATION
+        ]);
+
+        const currentTokens = new Set(this.subscriptions.keys());
+
+        const toSubscribe = [...allTokens].filter(t => !currentTokens.has(t));
+        const toUnsubscribe = [...currentTokens].filter(t => !allTokens.has(t));
+
+        if (toUnsubscribe.length > 0) {
+            this.unsubscribeTokens(toUnsubscribe);
+        }
+
+        if (toSubscribe.length > 0) {
+            this.subscribeTokens(toSubscribe);
+        }
+    }
+
+    subscribeTokens(tokens, exchangeType = 1, mode = 3) {
+        if (!Array.isArray(tokens) || tokens.length === 0) return;
 
         tokens.forEach(t => {
             this.subscriptions.set(t, { exchange: exchangeType, mode, subscribedAt: Date.now() });
+            this.subscriptionLeakGuard.add(t);
         });
 
         if (this.ws && this.isConnected) {
@@ -313,20 +366,19 @@ class FocusWebSocketService {
 
             try {
                 this.ws.send(JSON.stringify(payload));
-                console.log(`[WS] Subscribed to ${tokens.length} tokens (total: ${this.subscriptions.size}/${this.wsSettings.maxSubscriptions})`);
+                console.log(`[WS] Subscribed ${tokens.length} tokens (total: ${this.subscriptions.size}/${this.wsSettings.maxSubscriptions})`);
             } catch (e) {
                 console.error('[WS] Subscribe error:', e.message);
             }
         }
     }
 
-    unsubscribe(tokens, exchangeType = 1) {
-        if (!Array.isArray(tokens)) tokens = [tokens];
+    unsubscribeTokens(tokens, exchangeType = 1) {
+        if (!Array.isArray(tokens) || tokens.length === 0) return;
 
         tokens.forEach(t => {
             this.subscriptions.delete(t);
-            this.focusedTokens.delete(t);
-            this.priorityTokens.delete(t);
+            this.subscriptionLeakGuard.delete(t);
         });
 
         if (this.ws && this.isConnected) {
@@ -351,76 +403,113 @@ class FocusWebSocketService {
         }
     }
 
-    setFocus(tokens) {
-        if (!Array.isArray(tokens)) tokens = [tokens];
-        
-        this.focusedTokens.clear();
-        tokens.forEach(t => this.focusedTokens.add(t));
-        
-        console.log(`[WS] Focus set on ${tokens.length} tokens`);
+    subscribe(tokens, exchangeType = 1, mode = 3) {
+        this.subscribeWithPriority(tokens, 'ROTATION');
     }
 
-    setPriority(tokens) {
+    unsubscribe(tokens) {
         if (!Array.isArray(tokens)) tokens = [tokens];
         
-        this.priorityTokens.clear();
-        tokens.forEach(t => this.priorityTokens.add(t));
-    }
-
-    evictLowPrioritySubscriptions(needed) {
-        const candidates = [];
-        
-        this.subscriptions.forEach((value, token) => {
-            if (!this.priorityTokens.has(token) && !this.focusedTokens.has(token)) {
-                candidates.push({ token, ...value });
-            }
+        tokens.forEach(token => {
+            Object.values(this.priorityBuckets).forEach(bucket => bucket.delete(token));
         });
 
-        candidates.sort((a, b) => a.subscribedAt - b.subscribedAt);
+        this.unsubscribeTokens(tokens);
+    }
 
-        const toEvict = candidates.slice(0, needed);
-        if (toEvict.length > 0) {
-            const tokens = toEvict.map(c => c.token);
-            console.log(`[WS] Evicting ${tokens.length} low-priority subscriptions`);
-            this.unsubscribe(tokens);
+    resubscribeByPriority() {
+        if (this.subscriptions.size === 0 && 
+            this.priorityBuckets.CORE.size === 0 && 
+            this.priorityBuckets.ACTIVE.size === 0) {
+            return;
         }
+
+        this.subscriptions.clear();
+
+        const coreTokens = Array.from(this.priorityBuckets.CORE);
+        const activeTokens = Array.from(this.priorityBuckets.ACTIVE);
+        const rotationTokens = Array.from(this.priorityBuckets.ROTATION);
+
+        setTimeout(() => {
+            if (coreTokens.length > 0) {
+                this.subscribeTokens(coreTokens, 1, 3);
+            }
+        }, 100);
+
+        setTimeout(() => {
+            if (activeTokens.length > 0) {
+                this.subscribeTokens(activeTokens, 1, 3);
+            }
+        }, 600);
+
+        setTimeout(() => {
+            const maxRotation = this.wsSettings.maxSubscriptions - coreTokens.length - activeTokens.length;
+            if (rotationTokens.length > 0 && maxRotation > 0) {
+                this.subscribeTokens(rotationTokens.slice(0, maxRotation), 1, 3);
+            }
+        }, 1100);
     }
 
-    resubscribeAll() {
-        if (this.subscriptions.size === 0) return;
+    shiftPriority(token, fromBucket, toBucket) {
+        if (this.priorityBuckets[fromBucket]) {
+            this.priorityBuckets[fromBucket].delete(token);
+        }
+        if (this.priorityBuckets[toBucket]) {
+            this.priorityBuckets[toBucket].add(token);
+        }
+        this.enforceSubscriptionLimit();
+    }
 
-        const byExchange = new Map();
-        this.subscriptions.forEach((value, token) => {
-            const key = `${value.exchange}_${value.mode}`;
-            if (!byExchange.has(key)) {
-                byExchange.set(key, []);
+    promoteToActive(tokens) {
+        if (!Array.isArray(tokens)) tokens = [tokens];
+        tokens.forEach(token => {
+            this.priorityBuckets.ROTATION.delete(token);
+            this.priorityBuckets.ACTIVE.add(token);
+        });
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+    }
+
+    demoteToRotation(tokens) {
+        if (!Array.isArray(tokens)) tokens = [tokens];
+        tokens.forEach(token => {
+            if (!this.priorityBuckets.CORE.has(token)) {
+                this.priorityBuckets.ACTIVE.delete(token);
+                this.priorityBuckets.ROTATION.add(token);
             }
-            byExchange.get(key).push(token);
+        });
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+    }
+
+    evictFromRotation(count) {
+        const rotationArray = Array.from(this.priorityBuckets.ROTATION);
+        const toEvict = rotationArray.slice(0, count);
+        
+        toEvict.forEach(token => {
+            this.priorityBuckets.ROTATION.delete(token);
         });
 
-        let delay = 0;
-        byExchange.forEach((tokens, key) => {
-            const [exchange, mode] = key.split('_').map(Number);
-            setTimeout(() => {
-                if (this.isConnected) {
-                    const payload = {
-                        correlationID: `resub_${Date.now()}`,
-                        action: 1,
-                        params: {
-                            mode: mode,
-                            tokenList: [{
-                                exchangeType: exchange,
-                                tokens: tokens
-                            }]
-                        }
-                    };
-                    try {
-                        this.ws.send(JSON.stringify(payload));
-                    } catch (e) {}
-                }
-            }, delay);
-            delay += 500;
-        });
+        this.unsubscribeTokens(toEvict);
+        return toEvict;
+    }
+
+    checkForLeaks() {
+        const subscribed = new Set(this.subscriptions.keys());
+        const inBuckets = new Set([
+            ...this.priorityBuckets.CORE,
+            ...this.priorityBuckets.ACTIVE,
+            ...this.priorityBuckets.ROTATION
+        ]);
+
+        const leaks = [...subscribed].filter(t => !inBuckets.has(t));
+        
+        if (leaks.length > 0) {
+            console.log(`[WS] Detected ${leaks.length} subscription leaks, cleaning up...`);
+            this.unsubscribeTokens(leaks);
+        }
+
+        return leaks;
     }
 
     onPrice(callback) {
@@ -447,6 +536,14 @@ class FocusWebSocketService {
         return new Map(this.livePrices);
     }
 
+    getPriorityBuckets() {
+        return {
+            CORE: Array.from(this.priorityBuckets.CORE),
+            ACTIVE: Array.from(this.priorityBuckets.ACTIVE),
+            ROTATION: Array.from(this.priorityBuckets.ROTATION)
+        };
+    }
+
     getStatus() {
         return {
             connected: this.isConnected,
@@ -454,12 +551,16 @@ class FocusWebSocketService {
             subscriptionCount: this.subscriptions.size,
             maxSubscriptions: this.wsSettings.maxSubscriptions,
             availableSlots: this.wsSettings.maxSubscriptions - this.subscriptions.size,
-            focusedCount: this.focusedTokens.size,
-            priorityCount: this.priorityTokens.size,
+            buckets: {
+                CORE: this.priorityBuckets.CORE.size,
+                ACTIVE: this.priorityBuckets.ACTIVE.size,
+                ROTATION: this.priorityBuckets.ROTATION.size
+            },
             reconnectAttempts: this.reconnectAttempts,
             maxReconnectAttempts: this.wsSettings.maxReconnectAttempts,
             rateLimitHits: this.rateLimitHits,
-            livePricesCount: this.livePrices.size
+            livePricesCount: this.livePrices.size,
+            leakGuardSize: this.subscriptionLeakGuard.size
         };
     }
 
@@ -468,9 +569,9 @@ class FocusWebSocketService {
         this.cleanup();
         this.isConnected = false;
         this.subscriptions.clear();
-        this.focusedTokens.clear();
-        this.priorityTokens.clear();
+        Object.values(this.priorityBuckets).forEach(bucket => bucket.clear());
         this.livePrices.clear();
+        this.subscriptionLeakGuard.clear();
     }
 }
 
