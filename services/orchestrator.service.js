@@ -345,13 +345,40 @@ class OrchestratorService {
             strength += 1;
         }
 
-        let signalType = null;
-        const threshold = settings.signals?.strongSignalThreshold || 8;
+        // STRICT STRONG SIGNAL CALIBRATION
+        const volumeRatio = indicators.volumeRatio || 0;
+        const rsi = indicators.rsi || 50;
+        const adx = indicators.adx || 0;
+        const primaryRR = riskReward.primaryRR || 0;
+        const emaTrend = indicators.emaTrend || '';
 
+        let signalType = null;
+        
         if (breakout.type === 'BULLISH') {
-            signalType = strength >= threshold ? 'STRONG_BUY' : 'BUY';
+            // STRONG_BUY requires ALL conditions
+            const strongBuyConditions = {
+                volumeCheck: volumeRatio >= 2.5,
+                rsiInRange: rsi >= 60 && rsi <= 68,
+                adxStrong: adx >= 25,
+                rrGood: primaryRR >= 2.0,
+                trendStrong: emaTrend === 'STRONG_BULLISH'
+            };
+            
+            const allStrongMet = Object.values(strongBuyConditions).every(v => v === true);
+            signalType = allStrongMet ? 'STRONG_BUY' : 'BUY';
+            
         } else if (breakout.type === 'BEARISH') {
-            signalType = strength >= threshold ? 'STRONG_SELL' : 'SELL';
+            // STRONG_SELL requires ALL conditions (mirror)
+            const strongSellConditions = {
+                volumeCheck: volumeRatio >= 2.5,
+                rsiInRange: rsi >= 32 && rsi <= 40,
+                adxStrong: adx >= 25,
+                rrGood: primaryRR >= 2.0,
+                trendStrong: emaTrend === 'STRONG_BEARISH'
+            };
+            
+            const allStrongMet = Object.values(strongSellConditions).every(v => v === true);
+            signalType = allStrongMet ? 'STRONG_SELL' : 'SELL';
         }
 
         if (!signalType) return null;
