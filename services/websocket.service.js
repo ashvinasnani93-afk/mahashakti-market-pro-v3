@@ -481,10 +481,22 @@ class FocusWebSocketService {
     }
 
     syncSubscriptions() {
+        // Skip if CORE only mode
+        if (this.coreOnlyMode) {
+            const coreTokens = Array.from(this.priorityBuckets.CORE);
+            const currentTokens = new Set(this.subscriptions.keys());
+            
+            const toSubscribe = coreTokens.filter(t => !currentTokens.has(t));
+            const toUnsubscribe = [...currentTokens].filter(t => !this.priorityBuckets.CORE.has(t));
+            
+            if (toUnsubscribe.length > 0) this.unsubscribeTokens(toUnsubscribe);
+            if (toSubscribe.length > 0) this.subscribeTokens(toSubscribe);
+            return;
+        }
+
         const allTokens = new Set([
             ...this.priorityBuckets.CORE,
             ...this.priorityBuckets.ACTIVE,
-            ...this.priorityBuckets.VOLUME_LEADERS,
             ...this.priorityBuckets.EXPLOSION,
             ...this.priorityBuckets.ROTATION
         ]);
