@@ -2,7 +2,6 @@ const axios = require('axios');
 const config = require('../config/angel.config');
 const settings = require('../config/settings.config');
 const authService = require('./auth.service');
-const wsService = require('./websocket.service');
 
 class StrikeSweepService {
     constructor() {
