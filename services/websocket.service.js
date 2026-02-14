@@ -438,26 +438,43 @@ class FocusWebSocketService {
     promoteToExplosion(tokens) {
         if (!Array.isArray(tokens)) tokens = [tokens];
         
+        // Keep only top 10 in EXPLOSION bucket
         tokens.forEach(token => {
             Object.values(this.priorityBuckets).forEach(bucket => bucket.delete(token));
             this.priorityBuckets.EXPLOSION.add(token);
         });
 
+        // Trim to top 10
+        if (this.priorityBuckets.EXPLOSION.size > 10) {
+            const explosionArray = Array.from(this.priorityBuckets.EXPLOSION);
+            this.priorityBuckets.EXPLOSION = new Set(explosionArray.slice(0, 10));
+        }
+
         this.enforceSubscriptionLimit();
         this.syncSubscriptions();
-        console.log(`[WS] Promoted ${tokens.length} tokens to EXPLOSION bucket`);
+        console.log(`[WS] Promoted ${tokens.length} tokens to EXPLOSION bucket (Total: ${this.priorityBuckets.EXPLOSION.size}/10)`);
     }
 
-    promoteToVolumeLeaders(tokens) {
+    promoteToActive(tokens) {
         if (!Array.isArray(tokens)) tokens = [tokens];
         
+        // Keep only top 20 in ACTIVE bucket
         tokens.forEach(token => {
-            if (!this.priorityBuckets.CORE.has(token) && !this.priorityBuckets.EXPLOSION.has(token)) {
+            if (!this.priorityBuckets.CORE.has(token)) {
                 this.priorityBuckets.ROTATION.delete(token);
-                this.priorityBuckets.ACTIVE.delete(token);
-                this.priorityBuckets.VOLUME_LEADERS.add(token);
+                this.priorityBuckets.EXPLOSION.delete(token);
+                this.priorityBuckets.ACTIVE.add(token);
             }
         });
+
+        // Trim to top 20
+        if (this.priorityBuckets.ACTIVE.size > 20) {
+            const toRemove = this.evictLowActivity(this.priorityBuckets.ACTIVE, this.priorityBuckets.ACTIVE.size - 20);
+            toRemove.forEach(token => {
+                this.priorityBuckets.ACTIVE.delete(token);
+                this.priorityBuckets.ROTATION.add(token);
+            });
+        }
 
         this.enforceSubscriptionLimit();
         this.syncSubscriptions();
