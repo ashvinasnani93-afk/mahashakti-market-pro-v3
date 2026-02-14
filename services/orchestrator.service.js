@@ -5,6 +5,7 @@ const regimeService = require('./regime.service');
 const riskRewardService = require('./riskReward.service');
 const safetyService = require('./safety.service');
 const signalCooldownService = require('./signalCooldown.service');
+const adaptiveFilterService = require('./adaptiveFilter.service');
 
 class OrchestratorService {
     constructor() {
