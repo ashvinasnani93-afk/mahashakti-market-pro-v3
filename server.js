@@ -164,21 +164,45 @@ async function startServer() {
         console.log(`      Strict Validation: 4/5 rules`);
         console.log('');
 
-        console.log('[8/10] Initializing Signal Cooldown System...');
+        console.log('[8/13] Initializing OI Intelligence Layer...');
+        oiIntelligenceService.initialize();
+        console.log('[8/13] ✓ OI Intelligence initialized');
+        console.log(`      OI Delta Tracking: Active`);
+        console.log(`      PCR Monitoring: NIFTY | BANKNIFTY | FINNIFTY`);
+        console.log(`      Buildup Detection: LONG | SHORT | COVERING | UNWINDING`);
+        console.log('');
+
+        console.log('[9/13] Initializing Cross-Market Context Engine...');
+        crossMarketContextService.initialize();
+        console.log('[9/13] ✓ Cross-Market Context initialized');
+        console.log(`      Index Bias Tracking: Active`);
+        console.log(`      Sector Leadership: Active`);
+        console.log(`      Context Weight: 20% max influence`);
+        console.log('');
+
+        console.log('[10/13] Initializing VIX Safety Layer...');
+        safetyService.initializeVIXMonitoring();
+        const vixData = safetyService.getVIXData();
+        console.log('[10/13] ✓ VIX Safety initialized');
+        console.log(`      Current VIX: ${vixData.vix} (${vixData.level})`);
+        console.log(`      Premium Band: ₹${vixData.premiumAdjustment.minPremium}-₹${vixData.premiumAdjustment.maxPremium}`);
+        console.log('');
+
+        console.log('[11/13] Initializing Signal Cooldown System...');
         signalCooldownService.initialize();
-        console.log('[8/10] ✓ Signal Cooldown initialized');
+        console.log('[11/13] ✓ Signal Cooldown initialized');
         console.log(`      Cooldown: 15 minutes`);
         console.log(`      Deduplication: Active`);
         console.log('');
 
-        console.log('[9/10] Starting Scanner Loop...');
+        console.log('[12/13] Starting Scanner Loop...');
         await marketScannerLoopService.start();
-        console.log('[9/10] ✓ Scanner Loop running');
+        console.log('[12/13] ✓ Scanner Loop running');
         console.log('');
 
-        console.log('[10/10] Warming Candle Cache...');
+        console.log('[13/13] Warming Candle Cache...');
         await warmCandleCache();
-        console.log('[10/10] ✓ Cache warmed');
+        console.log('[13/13] ✓ Cache warmed');
         console.log('');
 
         app.listen(PORT, '0.0.0.0', () => {
@@ -196,8 +220,11 @@ async function startServer() {
             console.log('║                                                               ║');
             console.log('╠═══════════════════════════════════════════════════════════════╣');
             console.log('║   ACTIVE MODULES:                                             ║');
-            console.log('║   ✓ Universe Loader (Dynamic NSE+F&O)                         ║');
+            console.log('║   ✓ Universe Loader (Full Market from Angel Master)           ║');
             console.log('║   ✓ System Monitor (CPU/Memory Protection)                    ║');
+            console.log('║   ✓ OI Intelligence (Delta/PCR/Buildup)                       ║');
+            console.log('║   ✓ Cross-Market Context (Index Bias/Sector Leadership)       ║');
+            console.log('║   ✓ VIX Safety Layer (Premium Band Adjustment)                ║');
             console.log('║   ✓ Market Scanner Loop Engine                                ║');
             console.log('║   ✓ Strike Selection Engine (Adaptive Premium)                ║');
             console.log('║   ✓ Premium Momentum Engine                                   ║');
