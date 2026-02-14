@@ -234,7 +234,7 @@ class UniverseLoaderService {
         console.log(`[UNIVERSE] F&O Stocks parsed: ${this.stats.fnoStocksCount}`);
     }
 
-    // 🔴 PARSE INDEX OPTIONS (All weekly + monthly)
+    // 🔴 PARSE INDEX OPTIONS (All weekly + monthly) - MEMORY OPTIMIZED
     parseIndexOptions() {
         if (!this.masterData) return;
 
@@ -255,24 +255,22 @@ class UniverseLoaderService {
             );
 
             options.forEach(item => {
+                const strikePrice = parseFloat(item.strike) / 100 || 0;
+                const optionType = item.symbol.endsWith('CE') ? 'CE' : 'PE';
+                
+                // 🔴 MINIMAL DATA STORAGE for memory optimization
                 const instrument = {
                     symbol: item.symbol,
                     token: item.token,
-                    name: item.name,
                     underlying: indexName,
-                    exchange: filter.seg,
-                    exchangeCode: filter.seg === 'NFO' ? 2 : 4,
-                    instrumentType: 'INDEX_OPTION',
-                    optionType: item.symbol.endsWith('CE') ? 'CE' : 'PE',
-                    strikePrice: parseFloat(item.strike) / 100 || 0,
+                    optionType,
+                    strikePrice,
                     lotSize: parseInt(item.lotsize) || 1,
-                    tickSize: parseFloat(item.tick_size) || 0.05,
-                    expiry: item.expiry,
-                    expiryType: this.detectExpiryType(item.expiry)
+                    expiry: item.expiry
                 };
 
-                // Store in index-specific map
-                const mapKey = `${instrument.strikePrice}_${instrument.optionType}_${instrument.expiry}`;
+                // Store in index-specific map with strike-based key
+                const mapKey = `${strikePrice}_${optionType}_${item.expiry}`;
                 
                 switch (indexName) {
                     case 'NIFTY':
@@ -292,7 +290,7 @@ class UniverseLoaderService {
                         break;
                 }
 
-                // Store in combined index options
+                // Store in combined index options (only token->minimal data)
                 this.indexOptions.set(item.token, instrument);
             });
         }
