@@ -94,9 +94,30 @@ module.exports = {
         minPremium: 3,
         maxPremium: 650,
         minVolume: 1000,
-        strikesAroundATM: 5,
+        minOI: 10000,
+        strikesAroundATM: 20,
+        deepOTMThreshold: 0.05,
+        ivSpikeThreshold: 20,
+        oiDeltaThreshold: 10,
         optimalPremiumMin: 50,
         optimalPremiumMax: 200
+    },
+    
+    runners: {
+        earlyMovePercent: 1.5,
+        volumeSpikeMultiplier: 3,
+        rangeBreakoutATRMultiplier: 1.5,
+        atrExpansionThreshold: 1.3,
+        runnerThreshold: 5,
+        bigRunnerThreshold: 15,
+        maxRunners: 50
+    },
+    
+    cooldown: {
+        cooldownMinutes: 15,
+        maxSignalsPerToken: 3,
+        noiseFilterWindow: 5,
+        dedupeWindow: 60000
     },
     
     institutional: {
