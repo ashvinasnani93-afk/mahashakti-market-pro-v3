@@ -376,35 +376,39 @@ class FocusWebSocketService {
         const maxSubs = this.wsSettings.maxSubscriptions;
         const coreCount = this.priorityBuckets.CORE.size;
         const activeCount = this.priorityBuckets.ACTIVE.size;
-        const volumeCount = this.priorityBuckets.VOLUME_LEADERS.size;
         const explosionCount = this.priorityBuckets.EXPLOSION.size;
         const rotationCount = this.priorityBuckets.ROTATION.size;
 
-        const total = coreCount + activeCount + volumeCount + explosionCount + rotationCount;
+        // 🔴 HARD LIMIT: 50 MAX
+        const total = coreCount + activeCount + explosionCount + rotationCount;
 
         if (total <= maxSubs) return;
 
         let excess = total - maxSubs;
 
+        // Evict from ROTATION first
         if (excess > 0 && rotationCount > 0) {
             const toRemove = this.evictLowActivity(this.priorityBuckets.ROTATION, Math.min(excess, rotationCount));
             toRemove.forEach(token => this.priorityBuckets.ROTATION.delete(token));
             excess -= toRemove.length;
         }
 
-        if (excess > 0 && volumeCount > 0) {
-            const toRemove = this.evictLowActivity(this.priorityBuckets.VOLUME_LEADERS, Math.min(excess, volumeCount));
-            toRemove.forEach(token => this.priorityBuckets.VOLUME_LEADERS.delete(token));
+        // Then EXPLOSION (keep top 10)
+        if (excess > 0 && explosionCount > 10) {
+            const explosionArray = Array.from(this.priorityBuckets.EXPLOSION);
+            const toRemove = explosionArray.slice(10);
+            toRemove.forEach(token => this.priorityBuckets.EXPLOSION.delete(token));
             excess -= toRemove.length;
         }
 
-        if (excess > 0 && activeCount > 0) {
-            const toRemove = this.evictLowActivity(this.priorityBuckets.ACTIVE, Math.min(excess, activeCount));
+        // Then ACTIVE (keep top 20)
+        if (excess > 0 && activeCount > 20) {
+            const toRemove = this.evictLowActivity(this.priorityBuckets.ACTIVE, Math.min(excess, activeCount - 20));
             toRemove.forEach(token => this.priorityBuckets.ACTIVE.delete(token));
             excess -= toRemove.length;
         }
 
-        console.log(`[WS] Enforced limit: CORE=${coreCount}, ACTIVE=${this.priorityBuckets.ACTIVE.size}, VOLUME=${this.priorityBuckets.VOLUME_LEADERS.size}, EXPLOSION=${explosionCount}, ROTATION=${this.priorityBuckets.ROTATION.size}`);
+        console.log(`[WS] Enforced limit: CORE=${coreCount}, ACTIVE=${this.priorityBuckets.ACTIVE.size}, EXPLOSION=${this.priorityBuckets.EXPLOSION.size}, ROTATION=${this.priorityBuckets.ROTATION.size} (Total: ${this.subscriptions.size}/${maxSubs})`);
     }
 
     evictLowActivity(bucket, count) {
