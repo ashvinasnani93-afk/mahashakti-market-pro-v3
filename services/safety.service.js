@@ -198,6 +198,16 @@ class SafetyService {
             else warnings.push(volatilityCheck.message);
         }
 
+        // 🔴 VIX SAFETY CHECK
+        const vixCheck = this.checkVIX();
+        checks.push(vixCheck);
+        if (!vixCheck.pass) {
+            if (vixCheck.critical) overallPass = false;
+            else warnings.push(vixCheck.message);
+        } else if (vixCheck.warning) {
+            warnings.push(vixCheck.message);
+        }
+
         const trendCheck = this.checkTrendAlignment(indicators, breakout);
         checks.push(trendCheck);
         if (!trendCheck.pass) {
@@ -242,7 +252,8 @@ class SafetyService {
             checks,
             warnings,
             criticalFails: checks.filter(c => !c.pass && c.critical).map(c => c.name),
-            recommendation: this.getRecommendation(overallPass, score, warnings)
+            recommendation: this.getRecommendation(overallPass, score, warnings),
+            vixData: this.getVIXData()
         };
     }
 
