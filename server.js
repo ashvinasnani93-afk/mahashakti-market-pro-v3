@@ -14,6 +14,8 @@ const marketAggregatorService = require('./services/marketAggregator.service');
 const strikeSweepService = require('./services/strikeSweep.service');
 const runnerEngineService = require('./services/runnerEngine.service');
 const signalCooldownService = require('./services/signalCooldown.service');
+const universeLoaderService = require('./services/universeLoader.service');
+const systemMonitorService = require('./services/systemMonitor.service');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
