@@ -458,6 +458,164 @@ class RegimeService {
     getTrendHistory(count = 50) {
         return this.trendHistory.slice(-count);
     }
+
+    // 🔴 ADVANCED DAY TYPE DETECTION
+    detectDayType(indexData) {
+        const { prevClose, open, ltp, high, low } = indexData;
+        
+        if (!prevClose || !open || !ltp) {
+            this.dayType = { type: 'UNKNOWN', confidence: 0 };
+            return this.dayType;
+        }
+        
+        const gapPercent = ((open - prevClose) / prevClose) * 100;
+        const currentMove = ((ltp - open) / open) * 100;
+        const intradayRange = ((high - low) / low) * 100;
+        const vixData = safetyService.getVIXData();
+        const vix = vixData.vix;
+        const dayOfWeek = new Date().getDay();
+        
+        // Store gap info
+        this.gapInfo = {
+            gapPercent: parseFloat(gapPercent.toFixed(2)),
+            gapDirection: gapPercent > 0 ? 'UP' : gapPercent < 0 ? 'DOWN' : 'FLAT'
+        };
+        
+        let dayType = 'NORMAL';
+        let confidence = 0.5;
+        let tradingBias = 'NEUTRAL';
+        let signalAdjustment = 'NONE';
+        
+        // 🔴 CRASH DAY (Index drop > 2%)
+        if (currentMove <= this.dayTypeConfig.crashThreshold) {
+            dayType = 'CRASH_DAY';
+            confidence = 0.9;
+            tradingBias = 'BEARISH';
+            signalAdjustment = 'SUSPEND_BUY';
+            console.log(`[REGIME] 🔴 CRASH DAY detected: ${currentMove.toFixed(2)}%`);
+        }
+        // 🔴 HIGH VIX DAY
+        else if (vix >= this.dayTypeConfig.vixHighThreshold) {
+            dayType = 'HIGH_VIX_DAY';
+            confidence = 0.8;
+            tradingBias = 'CAUTIOUS';
+            signalAdjustment = 'DOWNGRADE_STRONG';
+        }
+        // 🔴 EXPIRY DAY (Thursday)
+        else if (this.dayTypeConfig.expiryDays.includes(dayOfWeek)) {
+            dayType = 'EXPIRY_DAY';
+            confidence = 0.95;
+            tradingBias = 'VOLATILE';
+            signalAdjustment = 'GAMMA_WATCH';
+        }
+        // 🔴 GAP UP DAY
+        else if (gapPercent >= this.dayTypeConfig.gapThreshold) {
+            dayType = 'GAP_UP_DAY';
+            confidence = 0.75;
+            tradingBias = 'BULLISH';
+            signalAdjustment = currentMove > 0 ? 'ALLOW_BULLISH' : 'CAUTIOUS_REVERSAL';
+        }
+        // 🔴 GAP DOWN DAY
+        else if (gapPercent <= -this.dayTypeConfig.gapThreshold) {
+            dayType = 'GAP_DOWN_DAY';
+            confidence = 0.75;
+            tradingBias = 'BEARISH';
+            signalAdjustment = currentMove < 0 ? 'ALLOW_BEARISH' : 'CAUTIOUS_REVERSAL';
+        }
+        // 🔴 TREND DAY (Strong directional move)
+        else if (Math.abs(currentMove) >= this.dayTypeConfig.trendDayThreshold) {
+            dayType = currentMove > 0 ? 'TREND_UP_DAY' : 'TREND_DOWN_DAY';
+            confidence = 0.85;
+            tradingBias = currentMove > 0 ? 'BULLISH' : 'BEARISH';
+            signalAdjustment = 'ALLOW_AGGRESSIVE_CONTINUATION';
+        }
+        // 🔴 RANGE DAY (Low movement)
+        else if (intradayRange <= this.dayTypeConfig.rangeDayThreshold) {
+            dayType = 'RANGE_DAY';
+            confidence = 0.7;
+            tradingBias = 'NEUTRAL';
+            signalAdjustment = 'DOWNGRADE_BREAKOUTS';
+        }
+        
+        this.dayType = {
+            type: dayType,
+            confidence,
+            tradingBias,
+            signalAdjustment,
+            metrics: {
+                gapPercent: parseFloat(gapPercent.toFixed(2)),
+                currentMove: parseFloat(currentMove.toFixed(2)),
+                intradayRange: parseFloat(intradayRange.toFixed(2)),
+                vix
+            },
+            timestamp: Date.now()
+        };
+        
+        // Record history
+        this.dayTypeHistory.push({ ...this.dayType });
+        if (this.dayTypeHistory.length > 100) this.dayTypeHistory.shift();
+        
+        return this.dayType;
+    }
+
+    // 🔴 APPLY REGIME TO SIGNAL
+    applyRegimeToSignal(signal) {
+        if (!this.dayType || !signal) return signal;
+        
+        const adjustedSignal = { ...signal };
+        
+        switch (this.dayType.signalAdjustment) {
+            case 'SUSPEND_BUY':
+                if (signal.signal === 'BUY' || signal.signal === 'STRONG_BUY') {
+                    adjustedSignal.suspended = true;
+                    adjustedSignal.suspendReason = `CRASH_DAY: BUY signals suspended`;
+                }
+                break;
+                
+            case 'DOWNGRADE_STRONG':
+                if (signal.signal === 'STRONG_BUY') {
+                    adjustedSignal.signal = 'BUY';
+                    adjustedSignal.downgraded = true;
+                    adjustedSignal.downgradeReason = `HIGH_VIX_DAY: STRONG → BUY`;
+                } else if (signal.signal === 'STRONG_SELL') {
+                    adjustedSignal.signal = 'SELL';
+                    adjustedSignal.downgraded = true;
+                    adjustedSignal.downgradeReason = `HIGH_VIX_DAY: STRONG → SELL`;
+                }
+                break;
+                
+            case 'DOWNGRADE_BREAKOUTS':
+                // Range day - downgrade breakout-based signals
+                if (signal.breakoutBased && (signal.signal === 'STRONG_BUY' || signal.signal === 'STRONG_SELL')) {
+                    adjustedSignal.signal = signal.signal.replace('STRONG_', '');
+                    adjustedSignal.downgraded = true;
+                    adjustedSignal.downgradeReason = `RANGE_DAY: Breakout downgraded`;
+                }
+                break;
+                
+            case 'ALLOW_AGGRESSIVE_CONTINUATION':
+                // Trend day - allow continuation signals to stay strong
+                adjustedSignal.trendDayBoost = true;
+                break;
+        }
+        
+        adjustedSignal.dayType = this.dayType.type;
+        adjustedSignal.regimeApplied = true;
+        
+        return adjustedSignal;
+    }
+
+    getDayType() {
+        return this.dayType;
+    }
+
+    getGapInfo() {
+        return this.gapInfo;
+    }
+
+    getDayTypeHistory(count = 50) {
+        return this.dayTypeHistory.slice(-count);
+    }
 }
 
 module.exports = new RegimeService();
