@@ -219,12 +219,20 @@ class StrikeSweepService {
     }
 
     filterByPremium(strikes) {
+        // 🔴 DYNAMIC PREMIUM RANGE - No hardcoded values
+        const dynamicRange = this.getDynamicPremiumRange();
+        const minPremium = dynamicRange.minPremium;
+        const maxPremium = dynamicRange.maxPremium;
+        
+        console.log(`[STRIKE_SWEEP] Filtering with dynamic range: ₹${minPremium}-₹${maxPremium} (Volatility: ${dynamicRange.volatility})`);
+        
         return strikes.filter(strike => {
             const premium = strike.ltp || 0;
-            return premium >= this.config.minPremium && premium <= this.config.maxPremium;
+            return premium >= minPremium && premium <= maxPremium;
         }).map(strike => ({
             ...strike,
-            premiumScore: this.calculatePremiumScore(strike.ltp)
+            premiumScore: this.calculatePremiumScore(strike.ltp),
+            premiumRange: { min: minPremium, max: maxPremium, volatility: dynamicRange.volatility }
         })).sort((a, b) => b.premiumScore - a.premiumScore);
     }
 
