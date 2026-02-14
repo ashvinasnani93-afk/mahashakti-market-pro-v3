@@ -262,11 +262,14 @@ class FocusWebSocketService {
         console.log('[WS] CORE ONLY MODE ENABLED - Unsubscribing non-core tokens');
         
         // Unsubscribe everything except CORE
-        const nonCore = [
-            ...this.priorityBuckets.ACTIVE,
-            ...this.priorityBuckets.EXPLOSION,
-            ...this.priorityBuckets.ROTATION
-        ];
+        const nonCore = [];
+        for (const [bucketName, bucket] of Object.entries(this.priorityBuckets)) {
+            if (bucketName !== 'CORE') {
+                for (const token of bucket) {
+                    nonCore.push(token);
+                }
+            }
+        }
         
         if (nonCore.length > 0) {
             this.unsubscribeTokens(nonCore);
