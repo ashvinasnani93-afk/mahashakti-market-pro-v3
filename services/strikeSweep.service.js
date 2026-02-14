@@ -14,6 +14,11 @@ class StrikeSweepService {
         this.premiumHistory = new Map();
         this.cacheExpiry = 60000;
         
+        // Current market volatility
+        this.currentVolatility = 'MEDIUM';
+        this.indiaVIX = null;
+        this.avgATRPercent = 2.0;
+        
         this.config = {
             minPremium: 3,
             maxPremium: 650,
@@ -24,12 +29,20 @@ class StrikeSweepService {
             minVolume: 1000,
             minOI: 10000
         };
+        
+        // Dynamic premium bands based on volatility
+        this.premiumBands = {
+            LOW: { min: 3, max: 400 },
+            MEDIUM: { min: 3, max: 650 },
+            HIGH: { min: 3, max: 1200 }
+        };
     }
 
     async initialize() {
         console.log('[STRIKE_SWEEP] Initializing strike sweep engine...');
         this.loadConfig();
-        console.log('[STRIKE_SWEEP] Initialized with config:', this.config);
+        console.log('[STRIKE_SWEEP] Premium Bands:', this.premiumBands);
+        console.log('[STRIKE_SWEEP] Initialized');
     }
 
     loadConfig() {
@@ -38,6 +51,47 @@ class StrikeSweepService {
             ...this.config,
             ...strikeConfig
         };
+    }
+
+    // 🔴 ADAPTIVE PREMIUM RANGE ENGINE
+    getDynamicPremiumRange() {
+        const band = this.premiumBands[this.currentVolatility] || this.premiumBands.MEDIUM;
+        return {
+            minPremium: band.min,
+            maxPremium: band.max,
+            volatility: this.currentVolatility,
+            indiaVIX: this.indiaVIX,
+            avgATRPercent: this.avgATRPercent
+        };
+    }
+
+    updateVolatility(atrPercent, vix = null) {
+        this.avgATRPercent = atrPercent;
+        this.indiaVIX = vix;
+
+        // Determine volatility level
+        // Low: ATR < 1.5% or VIX < 15
+        // Medium: ATR 1.5-3% or VIX 15-22
+        // High: ATR > 3% or VIX > 22
+        
+        let newVolatility = 'MEDIUM';
+        
+        if (vix !== null) {
+            if (vix < 15) newVolatility = 'LOW';
+            else if (vix > 22) newVolatility = 'HIGH';
+            else newVolatility = 'MEDIUM';
+        } else {
+            if (atrPercent < 1.5) newVolatility = 'LOW';
+            else if (atrPercent > 3.0) newVolatility = 'HIGH';
+            else newVolatility = 'MEDIUM';
+        }
+
+        if (newVolatility !== this.currentVolatility) {
+            console.log(`[STRIKE_SWEEP] Volatility changed: ${this.currentVolatility} → ${newVolatility} (ATR: ${atrPercent.toFixed(2)}%, VIX: ${vix || 'N/A'})`);
+            this.currentVolatility = newVolatility;
+        }
+
+        return this.getDynamicPremiumRange();
     }
 
     async sweepAllStrikes(symbol, spotPrice, exchange = 'NFO') {
