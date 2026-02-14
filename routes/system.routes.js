@@ -261,6 +261,50 @@ router.get('/options/:index', (req, res) => {
     }
 });
 
+// 🔴 GET /api/system/load - System load metrics (CPU, RSS, Active scan count)
+router.get('/load', (req, res) => {
+    try {
+        const health = systemMonitorService.getHealth();
+        const scannerStatus = require('../services/marketScannerLoop.service').getStatus();
+        const wsStatus = require('../services/websocket.service').getStatus();
+        
+        res.json({
+            success: true,
+            data: {
+                cpu: {
+                    current: health.cpu.current,
+                    average: health.cpu.average,
+                    status: health.cpu.status
+                },
+                memory: {
+                    rssMB: health.memory.rssMB,
+                    heapUsedMB: health.memory.heapUsedMB,
+                    heapTotalMB: health.memory.heapTotalMB
+                },
+                scanner: {
+                    isRunning: scannerStatus.isRunning,
+                    activeScanCount: scannerStatus.buckets.core + scannerStatus.buckets.active,
+                    rotationCount: scannerStatus.buckets.rotation,
+                    totalScanned: scannerStatus.stats.tokensScanned,
+                    batchesProcessed: scannerStatus.stats.batchesProcessed,
+                    reducedMode: scannerStatus.protectionMode.reducedMode,
+                    coreOnlyMode: scannerStatus.protectionMode.coreOnlyMode
+                },
+                websocket: {
+                    connected: wsStatus.connected,
+                    subscriptions: wsStatus.subscriptionCount,
+                    maxSubscriptions: wsStatus.maxSubscriptions,
+                    coreOnlyMode: wsStatus.coreOnlyMode
+                },
+                status: health.status,
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // GET /api/system/expiries - Get expiry information
 router.get('/expiries', (req, res) => {
     try {
