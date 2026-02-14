@@ -12,6 +12,11 @@ class ExplosionService {
         this.gammaAcceleration = new Map();
         this.rollingMemory = [];
         this.maxMemorySize = 500;
+        
+        // 🔴 MEMORY CAPS
+        this.maxSnapshotsPerToken = 50;    // Max 50 records per token
+        this.maxOISnapshotsPerToken = 30;  // Max 30 OI intervals per token
+        this.maxExplosionHistory = 500;     // Global explosion history limit
     }
 
     recordPrice(token, price, volume, oi = null, timestamp = Date.now()) {
@@ -24,7 +29,8 @@ class ExplosionService {
             timestamp 
         });
         
-        if (snapshots.length > 200) {
+        // 🔴 MEMORY CAP: Max 50 records per token
+        if (snapshots.length > this.maxSnapshotsPerToken) {
             snapshots.shift();
         }
         
@@ -46,7 +52,8 @@ class ExplosionService {
             timestamp
         });
 
-        if (snapshots.length > 200) {
+        // 🔴 MEMORY CAP: Max 30 OI intervals per token
+        if (snapshots.length > this.maxOISnapshotsPerToken) {
             snapshots.shift();
         }
 
