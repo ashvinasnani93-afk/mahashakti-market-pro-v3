@@ -267,6 +267,7 @@ process.on('SIGINT', () => {
     console.log('\n[SHUTDOWN] Received SIGINT');
     marketScannerLoopService.stop();
     scannerService.stop();
+    systemMonitorService.stop();
     wsService.disconnect();
     process.exit(0);
 });
@@ -275,6 +276,7 @@ process.on('SIGTERM', () => {
     console.log('\n[SHUTDOWN] Received SIGTERM');
     marketScannerLoopService.stop();
     scannerService.stop();
+    systemMonitorService.stop();
     wsService.disconnect();
     process.exit(0);
 });
