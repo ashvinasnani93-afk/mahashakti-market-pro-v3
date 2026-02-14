@@ -60,7 +60,21 @@ router.get('/', (req, res) => {
                 topRunners: 'GET /api/aggregator/top-runners',
                 momentum: 'GET /api/aggregator/momentum',
                 volumeSpikes: 'GET /api/aggregator/volume-spikes',
-                priorityBuckets: 'GET /api/aggregator/priority-buckets'
+                priorityBuckets: 'GET /api/aggregator/priority-buckets',
+                intradayTiers: 'GET /api/aggregator/intraday-tiers',
+                premiumTiers: 'GET /api/aggregator/premium-tiers'
+            },
+            market: {
+                fullOverview: 'GET /api/market/full-overview',
+                rankings: 'GET /api/market/rankings',
+                gainers: 'GET /api/market/gainers',
+                losers: 'GET /api/market/losers',
+                momentum: 'GET /api/market/momentum',
+                premiumTiers: 'GET /api/market/premium-tiers',
+                regime: 'GET /api/market/regime',
+                indices: 'GET /api/market/indices',
+                protection: 'GET /api/market/protection',
+                state: 'GET /api/market/state/:token'
             },
             system: {
                 health: 'GET /api/system/health',
