@@ -19,6 +19,9 @@ const systemMonitorService = require('./services/systemMonitor.service');
 const oiIntelligenceService = require('./services/oiIntelligence.service');
 const crossMarketContextService = require('./services/crossMarketContext.service');
 const safetyService = require('./services/safety.service');
+const marketStateService = require('./services/marketState.service');
+const globalRankingService = require('./services/globalRanking.service');
+const capitalGuardService = require('./services/capitalGuard.service');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
