@@ -777,15 +777,19 @@ class FocusWebSocketService {
     }
 
     getPriorityBuckets() {
-        return {
-            CORE: Array.from(this.priorityBuckets.CORE),
-            ACTIVE: Array.from(this.priorityBuckets.ACTIVE),
-            EXPLOSION: Array.from(this.priorityBuckets.EXPLOSION),
-            ROTATION: Array.from(this.priorityBuckets.ROTATION)
-        };
+        const result = {};
+        for (const [name, bucket] of Object.entries(this.priorityBuckets)) {
+            result[name] = Array.from(bucket);
+        }
+        return result;
     }
 
     getStatus() {
+        const bucketCounts = {};
+        for (const [name, bucket] of Object.entries(this.priorityBuckets)) {
+            bucketCounts[name] = bucket.size;
+        }
+        
         return {
             connected: this.isConnected,
             connecting: this.isConnecting,
@@ -793,23 +797,13 @@ class FocusWebSocketService {
             maxSubscriptions: this.wsSettings.maxSubscriptions,
             availableSlots: this.wsSettings.maxSubscriptions - this.subscriptions.size,
             coreOnlyMode: this.coreOnlyMode,
-            buckets: {
-                CORE: this.priorityBuckets.CORE.size,
-                ACTIVE: this.priorityBuckets.ACTIVE.size,
-                EXPLOSION: this.priorityBuckets.EXPLOSION.size,
-                ROTATION: this.priorityBuckets.ROTATION.size
-            },
-            limits: {
-                active: '20 max',
-                explosion: '10 max',
-                rotation: 'dynamic'
-            },
+            buckets: bucketCounts,
             reconnectAttempts: this.reconnectAttempts,
             maxReconnectAttempts: this.wsSettings.maxReconnectAttempts,
             rateLimitHits: this.rateLimitHits,
             livePricesCount: this.livePrices.size,
             leakGuardSize: this.subscriptionLeakGuard.size,
-            rotationIntervalSec: this.wsSettings.rotationIntervalSec || 120
+            rotationIntervalSec: this.wsSettings.rotationIntervalSec || 60
         };
     }
 
