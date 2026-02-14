@@ -564,8 +564,9 @@ class ExplosionService {
     recordExplosion(explosion) {
         this.explosionHistory.push(explosion);
         
-        if (this.explosionHistory.length > 1000) {
-            this.explosionHistory = this.explosionHistory.slice(-500);
+        // 🔴 MEMORY CAP: Limit global explosion history
+        if (this.explosionHistory.length > this.maxExplosionHistory) {
+            this.explosionHistory = this.explosionHistory.slice(-Math.floor(this.maxExplosionHistory * 0.8));
         }
     }
 
