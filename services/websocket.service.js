@@ -714,6 +714,7 @@ class FocusWebSocketService {
         return {
             CORE: Array.from(this.priorityBuckets.CORE),
             ACTIVE: Array.from(this.priorityBuckets.ACTIVE),
+            EXPLOSION: Array.from(this.priorityBuckets.EXPLOSION),
             ROTATION: Array.from(this.priorityBuckets.ROTATION)
         };
     }
@@ -725,16 +726,24 @@ class FocusWebSocketService {
             subscriptionCount: this.subscriptions.size,
             maxSubscriptions: this.wsSettings.maxSubscriptions,
             availableSlots: this.wsSettings.maxSubscriptions - this.subscriptions.size,
+            coreOnlyMode: this.coreOnlyMode,
             buckets: {
                 CORE: this.priorityBuckets.CORE.size,
                 ACTIVE: this.priorityBuckets.ACTIVE.size,
+                EXPLOSION: this.priorityBuckets.EXPLOSION.size,
                 ROTATION: this.priorityBuckets.ROTATION.size
+            },
+            limits: {
+                active: '20 max',
+                explosion: '10 max',
+                rotation: 'dynamic'
             },
             reconnectAttempts: this.reconnectAttempts,
             maxReconnectAttempts: this.wsSettings.maxReconnectAttempts,
             rateLimitHits: this.rateLimitHits,
             livePricesCount: this.livePrices.size,
-            leakGuardSize: this.subscriptionLeakGuard.size
+            leakGuardSize: this.subscriptionLeakGuard.size,
+            rotationIntervalSec: this.wsSettings.rotationIntervalSec || 120
         };
     }
 
@@ -746,6 +755,7 @@ class FocusWebSocketService {
         Object.values(this.priorityBuckets).forEach(bucket => bucket.clear());
         this.livePrices.clear();
         this.subscriptionLeakGuard.clear();
+        this.coreOnlyMode = false;
     }
 }
 
