@@ -20,7 +20,7 @@ class OIIntelligenceService {
             oiDeltaThreshold: 5,           // 5% change = significant
             accelerationThreshold: 10,     // 10% = acceleration
             pcrHistorySize: 100,
-            oiHistorySize: 50,
+            oiHistorySize: 30,             // 🔴 MEMORY CAP: Max 30 intervals
             buildupStrengthMin: 3,
             indices: ['NIFTY', 'BANKNIFTY', 'FINNIFTY']
         };
