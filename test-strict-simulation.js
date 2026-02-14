@@ -103,39 +103,45 @@ function checkStrictBreakout(candles, indicators) {
     };
 }
 
-// STRONG SIGNAL CHECK (NEW LOGIC)
+// STRONG SIGNAL CHECK (CALIBRATED LOGIC)
 function checkStrongSignal(indicators, breakoutType, rr) {
     const volumeRatio = indicators.volumeRatio || 0;
     const rsi = indicators.rsi || 50;
-    const adx = indicators.adx || 0;
+    const adx = indicators.adx || 15;
     const emaTrend = indicators.emaTrend || '';
 
     if (breakoutType === 'BULLISH') {
+        // STRONG_BUY requires 4 out of 5 conditions
         const conditions = {
-            volumeCheck: volumeRatio >= 2.5,
-            rsiInRange: rsi >= 60 && rsi <= 68,
-            adxStrong: adx >= 25,
-            rrGood: rr >= 2.0,
-            trendStrong: emaTrend === 'STRONG_BULLISH'
+            volumeCheck: volumeRatio >= 2.0,
+            rsiInRange: rsi >= 58 && rsi <= 72,
+            adxStrong: adx >= 20,
+            rrGood: rr >= 1.8,
+            trendStrong: emaTrend === 'STRONG_BULLISH' || emaTrend === 'BULLISH'
         };
+        const passCount = Object.values(conditions).filter(v => v === true).length;
         return {
-            isStrong: Object.values(conditions).every(v => v === true),
-            conditions
+            isStrong: passCount >= 4,
+            conditions,
+            passCount
         };
     } else if (breakoutType === 'BEARISH') {
+        // STRONG_SELL requires 4 out of 5 conditions
         const conditions = {
-            volumeCheck: volumeRatio >= 2.5,
-            rsiInRange: rsi >= 32 && rsi <= 40,
-            adxStrong: adx >= 25,
-            rrGood: rr >= 2.0,
-            trendStrong: emaTrend === 'STRONG_BEARISH'
+            volumeCheck: volumeRatio >= 2.0,
+            rsiInRange: rsi >= 28 && rsi <= 42,
+            adxStrong: adx >= 20,
+            rrGood: rr >= 1.8,
+            trendStrong: emaTrend === 'STRONG_BEARISH' || emaTrend === 'BEARISH'
         };
+        const passCount = Object.values(conditions).filter(v => v === true).length;
         return {
-            isStrong: Object.values(conditions).every(v => v === true),
-            conditions
+            isStrong: passCount >= 4,
+            conditions,
+            passCount
         };
     }
-    return { isStrong: false, conditions: {} };
+    return { isStrong: false, conditions: {}, passCount: 0 };
 }
 
 // RUN 500 INSTRUMENT SIMULATION WITH STRICT LOGIC
