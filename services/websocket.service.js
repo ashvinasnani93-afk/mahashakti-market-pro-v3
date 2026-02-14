@@ -10,12 +10,12 @@ class FocusWebSocketService {
         this.isConnecting = false;
         
         this.subscriptions = new Map();
+        // 🔴 PRIORITY BUCKET STRUCTURE: CORE | ACTIVE | EXPLOSION | ROTATION
         this.priorityBuckets = {
-            CORE: new Set(),
-            ACTIVE: new Set(),
-            VOLUME_LEADERS: new Set(),
-            EXPLOSION: new Set(),
-            ROTATION: new Set()
+            CORE: new Set(),      // Indices only - never unsubscribed
+            ACTIVE: new Set(),    // Top 20 active stocks
+            EXPLOSION: new Set(), // Top 10 explosion strikes
+            ROTATION: new Set()   // Remaining stocks - rotates every 120 sec
         };
         this.tokenActivity = new Map();
         this.lastActivityCheck = Date.now();
@@ -29,6 +29,7 @@ class FocusWebSocketService {
         
         this.pingInterval = null;
         this.reconnectTimeout = null;
+        this.rotationInterval = null;
         
         this.livePrices = new Map();
         this.lastUpdateTime = new Map();
@@ -40,10 +41,12 @@ class FocusWebSocketService {
             maxReconnectDelay: 60000,
             minConnectInterval: 5000,
             pingInterval: 30000,
-            rateLimitCooldown: 30000
+            rateLimitCooldown: 30000,
+            rotationIntervalSec: 120
         };
         
         this.subscriptionLeakGuard = new Set();
+        this.coreOnlyMode = false;
     }
 
     async connect() {
