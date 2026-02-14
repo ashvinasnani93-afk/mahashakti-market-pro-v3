@@ -207,29 +207,29 @@ async function startServer() {
         console.log(`      Liquidity Guard: Active`);
         console.log('');
 
-        console.log('[10/13] Initializing VIX Safety Layer...');
+        console.log('[13/16] Initializing VIX Safety Layer...');
         safetyService.initializeVIXMonitoring();
         const vixData = safetyService.getVIXData();
-        console.log('[10/13] ✓ VIX Safety initialized');
+        console.log('[13/16] ✓ VIX Safety initialized');
         console.log(`      Current VIX: ${vixData.vix} (${vixData.level})`);
         console.log(`      Premium Band: ₹${vixData.premiumAdjustment.minPremium}-₹${vixData.premiumAdjustment.maxPremium}`);
         console.log('');
 
-        console.log('[11/13] Initializing Signal Cooldown System...');
+        console.log('[14/16] Initializing Signal Cooldown System...');
         signalCooldownService.initialize();
-        console.log('[11/13] ✓ Signal Cooldown initialized');
+        console.log('[14/16] ✓ Signal Cooldown initialized');
         console.log(`      Cooldown: 15 minutes`);
         console.log(`      Deduplication: Active`);
         console.log('');
 
-        console.log('[12/13] Starting Scanner Loop...');
+        console.log('[15/16] Starting Scanner Loop...');
         await marketScannerLoopService.start();
-        console.log('[12/13] ✓ Scanner Loop running');
+        console.log('[15/16] ✓ Scanner Loop running');
         console.log('');
 
-        console.log('[13/13] Warming Candle Cache...');
+        console.log('[16/16] Warming Candle Cache...');
         await warmCandleCache();
-        console.log('[13/13] ✓ Cache warmed');
+        console.log('[16/16] ✓ Cache warmed');
         console.log('');
 
         app.listen(PORT, '0.0.0.0', () => {
