@@ -167,4 +167,32 @@ router.get('/priority-buckets', (req, res) => {
     });
 });
 
+// 🔴 INTRADAY TIER RUNNERS (8%, 12%, 15%, 20%)
+router.get('/intraday-tiers', (req, res) => {
+    const minTier = parseInt(req.query.minTier) || 8;
+    const runners = runnerEngineService.getIntradayTierRunners(minTier);
+    res.json({
+        success: true,
+        minTier,
+        count: runners.length,
+        tiers: [8, 12, 15, 20],
+        runners,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// 🔴 PREMIUM TIER EXPLOSIONS (50%, 100%, 200%, 500%, 1000%)
+router.get('/premium-tiers', (req, res) => {
+    const minTier = parseInt(req.query.minTier) || 50;
+    const explosions = runnerEngineService.getPremiumTierExplosions(minTier);
+    res.json({
+        success: true,
+        minTier,
+        count: explosions.length,
+        tiers: [50, 100, 200, 500, 1000],
+        explosions,
+        timestamp: new Date().toISOString()
+    });
+});
+
 module.exports = router;
