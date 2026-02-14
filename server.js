@@ -247,9 +247,70 @@ async function startServer() {
         console.log('[15/16] ✓ Scanner Loop running');
         console.log('');
 
-        console.log('[16/16] Warming Candle Cache...');
+        console.log('[16/24] Warming Candle Cache...');
         await warmCandleCache();
-        console.log('[16/16] ✓ Cache warmed');
+        console.log('[16/24] ✓ Cache warmed');
+        console.log('');
+
+        // ============ INSTITUTIONAL GRADE SERVICES ============
+        console.log('[17/24] Initializing Master Signal Guard...');
+        await masterSignalGuardService.initialize();
+        console.log('[17/24] ✓ Master Signal Guard initialized');
+        console.log(`      39+ validation layers: Active`);
+        console.log('');
+
+        console.log('[18/24] Initializing Market Breadth Engine...');
+        breadthService.start();
+        console.log('[18/24] ✓ Market Breadth Engine started');
+        console.log('');
+
+        console.log('[19/24] Initializing Relative Strength Engine...');
+        relativeStrengthService.start();
+        console.log('[19/24] ✓ Relative Strength Engine started');
+        console.log('');
+
+        console.log('[20/24] Initializing Liquidity Tier Engine...');
+        liquidityTierService.start();
+        console.log('[20/24] ✓ Liquidity Tier Engine started');
+        console.log('');
+
+        console.log('[21/24] Initializing Options Intelligence...');
+        gammaClusterService.start();
+        thetaEngineService.start();
+        expiryRolloverService.initialize();
+        ivSkewService.start();
+        console.log('[21/24] ✓ Options Intelligence started');
+        console.log(`      Gamma Cluster: Active`);
+        console.log(`      Theta Engine: Active`);
+        console.log(`      IV Skew: Active`);
+        console.log(`      Expiry Rollover: Active`);
+        console.log('');
+
+        console.log('[22/24] Initializing Risk Guards...');
+        panicKillSwitchService.start();
+        circuitBreakerService.start();
+        liquidityShockService.start();
+        console.log('[22/24] ✓ Risk Guards started');
+        console.log(`      Panic Kill Switch: Active`);
+        console.log(`      Circuit Breaker: Active`);
+        console.log(`      Liquidity Shock: Active`);
+        console.log('');
+
+        console.log('[23/24] Initializing Advanced Analytics...');
+        volatilityRegimeService.start();
+        crowdingDetectorService.start();
+        correlationEngineService.start();
+        gapDayService.detectGap();
+        console.log('[23/24] ✓ Advanced Analytics started');
+        console.log(`      Volatility Regime: Active`);
+        console.log(`      Crowding Detector: Active`);
+        console.log(`      Correlation Engine: Active`);
+        console.log(`      Gap Day Detection: Active`);
+        console.log('');
+
+        console.log('[24/24] Initializing Clock Sync...');
+        clockSyncService.start();
+        console.log('[24/24] ✓ Clock Sync started');
         console.log('');
 
         app.listen(PORT, '0.0.0.0', () => {
