@@ -51,7 +51,7 @@ function generateInstruments(count) {
     return generated;
 }
 
-// STRICT BREAKOUT CHECK (NEW LOGIC)
+// STRICT BREAKOUT CHECK (BALANCED LOGIC)
 function checkStrictBreakout(candles, indicators) {
     if (!candles || candles.length < 20) {
         return { valid: false, type: null, failedConditions: ['INSUFFICIENT_DATA'] };
@@ -70,33 +70,36 @@ function checkStrictBreakout(candles, indicators) {
     const rsi = indicators.rsi || 50;
     const atrPercent = indicators.atrPercent || 0;
 
-    // BULLISH STRICT CHECK
+    // BULLISH STRICT CHECK (Need 4 out of 5)
     const bullishConditions = {
         emaAlignment: ema20 > ema50,
         priceBreakout: lastClose > highest5,
-        volumeConfirm: volumeRatio >= 1.8,
-        rsiInRange: rsi >= 55 && rsi <= 70,
-        atrSafe: atrPercent < 3.5
+        volumeConfirm: volumeRatio >= 1.5,
+        rsiInRange: rsi >= 52 && rsi <= 75,
+        atrSafe: atrPercent < 4.0
     };
 
-    const bullishValid = Object.values(bullishConditions).every(v => v === true);
+    const bullishPassCount = Object.values(bullishConditions).filter(v => v === true).length;
+    const bullishValid = bullishPassCount >= 4;
 
-    // BEARISH STRICT CHECK
+    // BEARISH STRICT CHECK (Need 4 out of 5)
     const bearishConditions = {
         emaAlignment: ema20 < ema50,
         priceBreakout: lastClose < lowest5,
-        volumeConfirm: volumeRatio >= 1.8,
-        rsiInRange: rsi >= 30 && rsi <= 45,
-        atrSafe: atrPercent < 3.5
+        volumeConfirm: volumeRatio >= 1.5,
+        rsiInRange: rsi >= 25 && rsi <= 48,
+        atrSafe: atrPercent < 4.0
     };
 
-    const bearishValid = Object.values(bearishConditions).every(v => v === true);
+    const bearishPassCount = Object.values(bearishConditions).filter(v => v === true).length;
+    const bearishValid = bearishPassCount >= 4;
 
     return {
         valid: bullishValid || bearishValid,
         type: bullishValid ? 'BULLISH' : bearishValid ? 'BEARISH' : null,
         bullishConditions,
-        bearishConditions
+        bearishConditions,
+        passCount: bullishValid ? bullishPassCount : bearishValid ? bearishPassCount : 0
     };
 }
 
