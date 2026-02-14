@@ -66,7 +66,7 @@ class CapitalGuardService {
         // Guard 3: Check for sudden spike
         const spikeGuard = this.checkSpikeGuard(signal);
         guards.push(spikeGuard);
-        if (spikeGuard.action === 'WAIT') {
+        if (spikeGuard.action === 'DEFER') {
             shouldEmit = false;
             finalSignal.deferred = true;
             finalSignal.deferReason = spikeGuard.reason;
@@ -192,8 +192,8 @@ class CapitalGuardService {
                     return {
                         name: 'SPIKE_GUARD',
                         pass: false,
-                        action: 'WAIT',
-                        reason: `Sudden ${spikePercent.toFixed(2)}% spike in 1 min - Wait for confirmation`,
+                        action: 'DEFER',
+                        reason: `Sudden ${spikePercent.toFixed(2)}% spike in 1 min - Deferred for confirmation`,
                         spikePercent
                     };
                 }
