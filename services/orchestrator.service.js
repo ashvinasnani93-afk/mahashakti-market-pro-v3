@@ -4,16 +4,15 @@ const candleService = require('./candle.service');
 const indicatorService = require('./indicator.service');
 const institutionalService = require('./institutional.service');
 const regimeService = require('./regime.service');
-const explosionService = require('./explosion.service');
 const riskRewardService = require('./riskReward.service');
 const safetyService = require('./safety.service');
-const rankingService = require('./ranking.service');
 
 class OrchestratorService {
     constructor() {
         this.signalHistory = new Map();
         this.activeSignals = [];
         this.lastAnalysis = new Map();
+        this.signalRankScores = new Map();
     }
 
     async analyzeInstrument(instrument, candles5m, candles15m, candlesDaily) {
@@ -140,7 +139,7 @@ class OrchestratorService {
 
     checkVolumeConfirmation(indicators) {
         const volumeRatio = indicators.volumeRatio || 0;
-        const volumeConfig = settings.indicators.volume;
+        const volumeConfig = settings.indicators?.volume || { minRatio: 1.5, highRatio: 2.0, explosionRatio: 3.0 };
 
         let strength = 'LOW';
         if (volumeRatio >= volumeConfig.explosionRatio) {
@@ -281,7 +280,7 @@ class OrchestratorService {
         }
 
         let signalType = null;
-        const threshold = settings.signals.strongSignalThreshold;
+        const threshold = settings.signals?.strongSignalThreshold || 8;
 
         if (breakout.type === 'BULLISH') {
             signalType = strength >= threshold ? 'STRONG_BUY' : 'BUY';
@@ -291,7 +290,9 @@ class OrchestratorService {
 
         if (!signalType) return null;
 
-        return {
+        const rankScore = this.calculateRankScore(strength, volumeConfirm, higherTF, institutional, riskReward);
+
+        const signal = {
             instrument: {
                 symbol: instrument.symbol,
                 token: instrument.token,
@@ -302,6 +303,7 @@ class OrchestratorService {
             signal: signalType,
             direction: breakout.type === 'BULLISH' ? 'LONG' : 'SHORT',
             strength,
+            rankScore,
             confidence: Math.min(100, (strength / 15) * 100),
             price: indicators.price,
             entry: riskReward.entry,
@@ -345,6 +347,32 @@ class OrchestratorService {
             },
             timestamp: Date.now()
         };
+
+        this.signalRankScores.set(instrument.token, rankScore);
+
+        return signal;
+    }
+
+    calculateRankScore(strength, volumeConfirm, higherTF, institutional, riskReward) {
+        let rankScore = 0;
+
+        rankScore += strength * 3;
+
+        if (volumeConfirm.strength === 'EXPLOSION') rankScore += 20;
+        else if (volumeConfirm.strength === 'HIGH') rankScore += 15;
+        else if (volumeConfirm.strength === 'MODERATE') rankScore += 10;
+
+        rankScore += higherTF.score * 5;
+        if (higherTF.fullAlignment) rankScore += 10;
+
+        rankScore += institutional.score * 3;
+        if (institutional.detected) rankScore += 10;
+
+        if (riskReward.primaryRR >= 3) rankScore += 15;
+        else if (riskReward.primaryRR >= 2.5) rankScore += 10;
+        else if (riskReward.primaryRR >= 2) rankScore += 5;
+
+        return Math.min(100, rankScore);
     }
 
     recordSignal(token, signal) {
@@ -361,11 +389,11 @@ class OrchestratorService {
         this.activeSignals.push(signal);
 
         if (this.activeSignals.length > 50) {
-            this.activeSignals.sort((a, b) => b.strength - a.strength);
+            this.activeSignals.sort((a, b) => b.rankScore - a.rankScore);
             this.activeSignals = this.activeSignals.slice(0, 50);
         }
 
-        console.log(`[ORCHESTRATOR] Signal: ${signal.signal} ${signal.instrument.symbol} @ ${signal.price} (Strength: ${signal.strength})`);
+        console.log(`[ORCHESTRATOR] ${signal.signal} | ${signal.instrument.symbol} @ ${signal.price} | Strength: ${signal.strength} | Rank: ${signal.rankScore}`);
     }
 
     getActiveSignals(filters = {}) {
@@ -383,8 +411,27 @@ class OrchestratorService {
         if (filters.sector) {
             signals = signals.filter(s => s.instrument.sector === filters.sector);
         }
+        if (filters.minRankScore) {
+            signals = signals.filter(s => s.rankScore >= filters.minRankScore);
+        }
 
-        return signals.sort((a, b) => b.strength - a.strength);
+        return signals.sort((a, b) => b.rankScore - a.rankScore);
+    }
+
+    getTopRankedSignals(count = 10) {
+        return [...this.activeSignals]
+            .sort((a, b) => b.rankScore - a.rankScore)
+            .slice(0, count);
+    }
+
+    getSignalsByType(type) {
+        return this.activeSignals.filter(s => s.signal === type);
+    }
+
+    getStrongSignals() {
+        return this.activeSignals.filter(s => 
+            s.signal === 'STRONG_BUY' || s.signal === 'STRONG_SELL'
+        );
     }
 
     getSignalHistory(token, count = 50) {
@@ -404,10 +451,38 @@ class OrchestratorService {
         return this.lastAnalysis.get(token) || null;
     }
 
+    getRankScore(token) {
+        return this.signalRankScores.get(token) || 0;
+    }
+
+    getStats() {
+        const buyCount = this.activeSignals.filter(s => s.signal === 'BUY').length;
+        const strongBuyCount = this.activeSignals.filter(s => s.signal === 'STRONG_BUY').length;
+        const sellCount = this.activeSignals.filter(s => s.signal === 'SELL').length;
+        const strongSellCount = this.activeSignals.filter(s => s.signal === 'STRONG_SELL').length;
+
+        return {
+            totalActive: this.activeSignals.length,
+            byType: {
+                BUY: buyCount,
+                STRONG_BUY: strongBuyCount,
+                SELL: sellCount,
+                STRONG_SELL: strongSellCount
+            },
+            avgStrength: this.activeSignals.length > 0 
+                ? this.activeSignals.reduce((a, b) => a + b.strength, 0) / this.activeSignals.length 
+                : 0,
+            avgRankScore: this.activeSignals.length > 0 
+                ? this.activeSignals.reduce((a, b) => a + b.rankScore, 0) / this.activeSignals.length 
+                : 0
+        };
+    }
+
     clearSignals() {
         this.signalHistory.clear();
         this.activeSignals = [];
         this.lastAnalysis.clear();
+        this.signalRankScores.clear();
     }
 }
 
