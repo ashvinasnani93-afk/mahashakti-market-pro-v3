@@ -4,6 +4,7 @@ const marketAggregatorService = require('../services/marketAggregator.service');
 const premiumMomentumService = require('../services/premiumMomentum.service');
 const explosionService = require('../services/explosion.service');
 const marketScannerLoopService = require('../services/marketScannerLoop.service');
+const runnerEngineService = require('../services/runnerEngine.service');
 
 router.get('/screen1', (req, res) => {
     const data = marketAggregatorService.getScreen1Data();
