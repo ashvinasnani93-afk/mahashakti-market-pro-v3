@@ -1,88 +1,76 @@
 <analysis>**original_problem_statement:**
-The user wants to build a high-performance, production-grade backend system named MAHASHAKTI for stock market analysis and signal generation. The system should not have a frontend.
+The user wants to build a high-performance, production-grade backend system named MAHASHAKTI for stock market analysis and signal generation. The system should not have a frontend and must operate entirely in-memory without a database.
 
 **PRODUCT REQUIREMENTS:**
-- The system must be production-stable and built with an institutional-grade, modular architecture.
-- It must scan the entire market (NSE EQ stocks, F&O contracts) fetched dynamically from the Angel One instrument master.
-- It must generate only actionable signals (STRONG BUY, BUY, SELL, STRONG SELL) with no WAIT signals.
-- The signal logic must be strict and configurable, with features for dynamic tightening of rules if too many candidates are found.
-- It must include a sophisticated Runner Engine to detect stocks moving 15-20% with high volume and sector strength.
-- The system needs an Adaptive Strike Range Engine that adjusts the option premium filter based on market volatility (VIX/ATR).
-- It must have a robust WebSocket management system with priority buckets that can handle a large number of instruments without exceeding the 50-subscription limit.
-- A CPU load protection system is required to monitor system health and scale down operations if CPU usage exceeds 75% or 90%.
-- All data processing should happen in-memory; no database is permitted.
-- The user requires detailed logging for debugging, including reasons for breakout rejections and signal downgrades.
+- **Phase 1 (Initial Build)**: A modular Node.js backend to scan NSE stocks, generate strict BUY/SELL signals, and manage WebSocket connections.
+- **Phase 2 (Stabilization & Enhancement)**: Implement a 7-point plan including a dynamic universe loader, adaptive strike/breakout filters, an upgraded Runner Engine, a CPU protection system, and a new WebSocket priority structure.
+- **Phase 3 (Full Market Expansion)**: Upgrade the universe loader to use the official Angel One master JSON for all NSE Equity, F&O stocks, and Index Options. Add an OI Intelligence Layer for PCR analysis and a Cross-Market Context Engine to weigh signals. Integrate VIX into the safety layer.
+- **Phase 4 (Pre-Live Hardening)**: Add intraday cumulative percentage trackers for equity runners and premium growth trackers for options. Implement memory caps and confirm the scanner only processes active instruments.
+- **Phase 5 (Full Institutional Hardening)**: Introduce a centralized , a , a  for risk management, and an advanced . Unify key data into a single  endpoint.
+- **Final Goal**: A stable, production-ready system capable of monitoring the full market, detecting high-momentum movers (15-20% equity, 1000%+ options), and providing context-aware, capital-protected signals.
 
 **User's preferred language**: The user communicates in **Hinglish**. The next agent MUST respond in Hinglish only.
 
 **what currently exists?**
-The project is a 32-file Node.js backend application designed for stock market analysis. The agent has just begun implementing a major 7-point enhancement plan requested by the user. As part of this, four new, but currently un-integrated, service/route files have been created: , , , and . The agent was in the process of modifying  when the session ended. The application is currently in a broken, non-runnable state due to this partial implementation.
+The project is a mature, multi-phased Node.js backend application for stock market analysis named MAHASHAKTI. It has successfully undergone several major upgrades, including a full market universe loader (from Angel Master JSON), an OI intelligence layer, a cross-market context engine, VIX-based safety protocols, and advanced tracking for equity and option momentum. The latest phase, Full Institutional Hardening, added a centralized market state service, a global ranking engine, a capital protection service, and an advanced regime detection engine. The system is stable, feature-complete according to all user requests so far, and has passed all boot, runtime, and memory checks. The codebase is in a production-frozen state, awaiting a manual push to GitHub by the user.
 
 **Last working item**:
-    - Last item agent was working: The agent was implementing the Adaptive Strike Range Engine (Point 2 of the user's 7-point plan). It had just added a  function to  and was about to modify the  function to use this new dynamic logic. This is part of a larger, multi-feature implementation task.
-    - Status: IN PROGRESS
-    - Agent Testing Done: N
-    - Which testing method agent to use? backend testing agent. Once all 7 features are implemented and integrated, the agent must create a new simulation test script to validate the new adaptive logic, universe loader, and system monitor. It should also use  to test the new  endpoints.
+    - Last item agent was working: Performing a FULL PRODUCTION FREEZE CHECK as ordered by the user. This involved verifying the total file count, ensuring no temporary or test files exist, confirming hard-coded rules (e.g., no WAIT signals), performing a final boot test, and checking memory usage. The agent confirmed all checks passed and presented the final state to the user, instructing them on how to perform the manual Git push.
+    - Status: USER VERIFICATION PENDING
+    - Agent Testing Done: Y
+    - Which testing method agent to use? N/A. The previous task was a verification check. The next step is a user action (manual Git push). After the push, the next phase will be live market simulation testing.
     - User Testing Done: N
 
 **All Pending/In progress Issue list**:
-There are no specific bugs. The main pending item is the large, in-progress feature implementation task.
+  There are no pending technical issues or bugs. The application is stable. The only pending action is from the user.
 
 **In progress Task List**:
-  - Task 1: **Complete the 7-Point Enhancement Plan (P0)**
-  
- Task Detail:
-  - Task 1: **Complete the 7-Point Enhancement Plan (P0)**
-     - Where to resume: 
-       1. Continue editing . Modify the  function to use the newly created  logic.
-       2. Implement Point 3: Upgrade the **Runner Engine** in  with the stricter 4/5 validation rule and .
-       3. Implement Point 6: Modify the **WebSocket Priority Engine** in  to match the new CORE/ACTIVE/EXPLOSION/ROTATION structure.
-       4. Integrate all new services into the main application:
-          - In : Initialize  and , and schedule their respective jobs (daily universe refresh, periodic health checks).
-          - In : Mount the new .
-          - In : Integrate the  to dynamically tighten rules.
-          - In : Replace the static instrument list with the dynamic list from .
-     - What will be achieved with this? The system will become significantly more dynamic, robust, and production-ready, featuring full market scanning, adaptive filtering based on volatility, and self-protection against CPU overload.
-     - Status: IN PROGRESS
-     - Should Test frontend/backend/both after fix? backend
-     - Blocked on something: No
+  There are no in-progress development tasks. All ordered features have been implemented and verified.
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks:**
-    - **Final Validation (P0):** After implementing all 7 enhancements, run a comprehensive dry simulation to validate the new features as per the user's criteria (universe size, strike count, CPU logs, WebSocket limits, memory usage).
-    - **Live Market Proof (P1):** Run the application during live market hours to capture and prove the generation of actionable signals and explosion events.
+    - **P0: User-led GitHub Push:** The user needs to manually use the Save to Github feature to push the final, production-frozen codebase. The agent must wait for the user's confirmation of this action.
+    - **P1: Live Shadow Proof:** Once the code is on GitHub, the next step is to run the application for one full, live market session to prove its stability. Key metrics to watch are no WebSocket disconnects and no memory creep.
 
 - **Future Tasks:**
-    - **Railway Deployment (P1):** Guide the user through deploying the application on Railway.
-    - **GitHub Push (P2):** Instruct the user on how to use the Save to Github feature to push the final code.
+    - **P2: Telegram Bot Integration:** After the system has been proven stable in a live session, the user intends to add a Telegram bot for real-time notifications.
 
 **Completed work in this session**
-- Implemented and validated multiple rounds of strict breakout and strong signal logic as per user specifications.
-- Added detailed  and  logging to .
-- Performed a full code cleanup (Production Freeze), removing temporary test files (, , etc.) and unused code/imports across the 32-file project.
-- Verified the final 32-file structure, confirmed all hard rules were active, and ensured the server boots cleanly.
-- **Started a major 7-point enhancement plan**:
-  - Created 
-  - Created 
-  - Created 
-  - Created 
-  - Began modifying .
+- **Full Institutional Hardening (DONE):**
+  - Created  for centralized real-time instrument data.
+  - Created  for continuously updated market rankings (gainers, losers, momentum).
+  - Created  for advanced risk management (VIX, crash, spike, liquidity protection).
+  - Enhanced  to detect specific day types (Trend, Range, Gap, Crash, etc.).
+  - Upgraded  with an intelligent 6-bucket priority rotation system.
+  - Created  and a unified  endpoint for a single dashboard feed.
+- **Pre-Live Hardening (DONE):**
+  - Implemented intraday % gain trackers (8% to 20%) in .
+  - Implemented premium growth trackers (50% to 1000%) in .
+  - Enforced memory caps on explosion and OI history.
+  - Added a  endpoint for real-time system health monitoring.
+- **Full Market Expansion (DONE):**
+  - Rewrote  to parse the Angel Master JSON, loading over 7,900 instruments.
+  - Created  and .
+  - Integrated VIX checks into .
+  - Passed an 800+ instrument dry simulation test.
+- **Stabilization of 7-Point Enhancement Plan (DONE):**
+  - Fixed a previously broken, half-implemented feature set, making the application stable and runnable.
 
 **Earlier issues found/mentioned but not fixed**
    - None.
 
 **Known issue recurrence from previous fork**
-  - N/A
+  - None.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
 - **Backend:** Node.js, Express.js
-- **Data Source & API:** Angel One API (REST for historical/scan data, WebSocket for live ticks).
+- **Data Source & API:** Angel One SmartAPI (REST for historical data, WebSocket for live ticks), Angel Master JSON for universe loading.
 - **Architecture:** Highly modular, service-oriented architecture.
-- **Data Management:** In-memory caching only (no database).
-- **New Concepts:** Dynamic Universe Loading, Adaptive Filtering (for strikes and breakouts), System Health Monitoring (CPU/Event Loop).
+- **Data Management:** In-memory caching and state management only (no database).
+- **Core Features:** Dynamic Universe Loading, Real-time Market State, Global Market Ranking, Adaptive Filtering, System Health Monitoring, Capital Protection, Advanced WebSocket Priority Management, Context-Aware Signal Generation.
 
 **key DB schema**
   - No database is used.
@@ -91,70 +79,71 @@ There are no specific bugs. The main pending item is the large, in-progress feat
   - None.
 
 **All files of reference**
-- **Newly Created:**
-  - : To fetch and manage the full list of NSE/F&O instruments.
-  - : To expose new system-level endpoints (, ).
-  - : To track CPU usage and event loop lag for overload protection.
-  - : To provide logic for dynamically tightening scan filters.
-- **To Be Modified:**
-  - : For the adaptive premium range.
-  - : For the upgraded runner validation logic.
-  - : For the enhanced priority bucket system.
-  - : To integrate the adaptive filter.
-  - : To use the dynamic universe loader.
-  - : To initialize and integrate all new services.
+- **Key Services (Newest):**
+  - : The new centralized source of truth for all real-time instrument data.
+  - : Manages continuously sorted lists of top market movers.
+  - : Implements system-wide risk management rules.
+  - : Provides high-level market context (e.g., Trend Day, Crash Day).
+- **Key Routes (Newest):**
+  - : Exposes the new unified market snapshot and ranking APIs.
+- **Core Integration Files:**
+  - : Initializes and orchestrates all services.
+  - : Mounts all API route modules.
+  - : Handles the loading of ~8000 instruments at boot.
+  - : Manages the intelligent rotation of 50 WebSocket subscriptions.
 
 **Areas that need refactoring**:
-- The current priority is to complete the in-progress feature implementation, not to perform additional refactoring.
+- None. The code has been iteratively hardened and cleaned. The current priority is live testing.
 
 **key api endpoints**
-- 
-- 
-- **Upcoming:**
-  - 
-  - 
+- **Unified Dashboard:** 
+- **System Health:** 
+- **Market Rankings:** 
+- **Market Regime:** 
+- **System Universe:** 
+- **Tier Trackers:** , 
 
 **Critical Info for New Agent**
-- **Your immediate priority is to complete the 7-point enhancement plan from user message #265.** The implementation is currently partial and the app is broken.
-- **Resume work on **, then proceed to the other required modifications and integrations as outlined in the In progress Task List.
-- The user is highly specific. Adhere strictly to the logic and rules they provide (e.g., breakout conditions, strong signal criteria).
-- All code modifications must be done via full-file replacement.
-- **You must communicate with the user in Hinglish.**
+- **The code is in a Production Freeze state.** Do NOT modify any logic or files unless the user explicitly orders a new feature or bug fix.
+- **Your immediate task is to wait for the user.** The user has been instructed to use the platform's Save to Github feature. You must wait for their confirmation that this action is complete before proceeding.
+- **The next phase is Live Shadow Proof.** Be prepared to run the application for a full market session and monitor its stability (memory, WebSocket connections).
+- **Adhere strictly to the user's non-negotiable rules:** No WAIT signals, max 50 WebSocket subscriptions, in-memory operations only, RSS memory below ~200MB.
+- **Communicate ONLY in Hinglish.**
 
 **documents and test reports created in this job**
-  - All temporary test files (, , etc.) were created and then deleted as part of the code freeze. Do not look for them.
+  - : Contains the full history of requirements and completed work. This file was updated after each major phase.
 
-**Last 10 User Messages and any pending HUMAN messages** 
-- **User (265):** Ordered a massive 7-point enhancement to the system, including a full universe loader, adaptive strike/breakout filters, an upgraded runner engine, a CPU protection system, and a new WebSocket priority structure. **This is the current task.**
-- **User (261):** Ordered a final Git push after the production freeze. The agent guided the user on how to use the platform's Save to Github feature.
-- **User (255):** Requested a final runtime sanity check with specific simulation criteria, which the agent performed successfully.
-- **User (235):** Ordered a final Production Freeze, confirming all files, removing test scripts, and verifying code quality.
-- **User (189):** Ordered a final code cleanup and freeze, removing all test files and console logs.
-- **User (173):** Provided non-negotiable updates to the breakout and strong signal logic, making certain conditions mandatory and adding requirements for debug logging.
-- **User (117):** Demanded a strict tightening of breakout logic, calibration of strong signals, and a more robust runner engine filter.
-- **User (105):** Ordered a comprehensive 5-step dry simulation to stress-test the system, including instrument/strike scans, WebSocket load, and signal cooldown.
-- **User (55):** Demanded detailed, function-level proof for existing features and ordered the agent to add several missing modules (Strike Sweep Engine, Runner Engine, Dynamic WS Priority Manager, etc.).
-- **User (5):** Provided a highly detailed, 5-priority test plan for the newly architected system.
+**Last 10 User Messages and any pending HUMAN messages**
+- **User (314):** Ordered a final, strict production freeze check, demanding verification of file counts, rule adherence, and a clean working tree before the push.
+- **Agent (313):** Finished the Institutional Hardening phase and provided a command to monitor system health.
+- **User (247):** Ordered the Full Institutional Hardening phase, a massive 9-point plan to add multiple new services for state, ranking, capital protection, and a unified API.
+- **Agent (246):** Confirmed the pre-push verification was complete and instructed the user to click the Save to Github button.
+- **User (243):** Gave the final order to push the Full Market Expansion version to GitHub, providing the exact commit message to use.
+- **Agent (242):** Confirmed all production freeze checks passed and instructed the user on how to use the Save to Github feature.
+- **User (225):** Ordered a Final Clean Production Push, including verification of file counts, removal of test files, and a final boot/memory check.
+- **Agent (224):** Finished the Pre-Live Hardening phase and provided a final summary.
+- **User (180):** Ordered the Final Pre-Live Hardening phase, requesting intraday and premium growth trackers, memory caps, and a new health endpoint.
+- **Agent (179):** Finished the Full Market Expansion phase and provided a summary.
 
 **Project Health Check:**
-- **Broken:** Yes. The application is in a non-runnable state due to a partial implementation of a large feature set. New services have been created but are not integrated.
+- **Broken:** No. The application is stable and passed all recent verification tests.
 - **Mocked:** None.
 
 **3rd Party Integrations**
-- **Angel One SmartAPI:** Used for REST and WebSocket market data. This is not an LLM integration and does not use any special keys.
+- **Angel One SmartAPI:** Used for REST and WebSocket market data. Keys are managed in .
 
 **Testing status**
   - Testing agent used after significant changes: NO
   - Troubleshoot agent used after agent stuck in loop: NO
-  - Test files created: [] (Previous test files were deleted as part of the cleanup).
-  - Known regressions: N/A
+  - Test files created: []. All temporary test/simulation files were created for specific tasks and then deleted as per user instructions to maintain a clean production state.
+  - Known regressions: None.
 
 **Credentials to test flow:**
-- Credentials are in  and used automatically.
+- Credentials are in .
 - ANGEL_API_KEY: 
 - ANGEL_CLIENT_ID: 
 - ANGEL_PASSWORD: 
 - ANGEL_TOTP_SECRET: 
 
 **What agent forgot to execute**
-The agent did not forget anything. It was correctly executing a large, multi-step user request and was interrupted mid-task. The next agent needs to pick up where the previous one left off.</analysis>
+The agent has followed all user instructions precisely. There are no forgotten tasks. The ball is in the user's court to perform the manual GitHub push.</analysis>
