@@ -624,11 +624,27 @@ class SafetyService {
         if (indicators.avgVolume < this.config.minLiquidity) {
             issues.push('LOW_LIQUIDITY');
         }
+        
+        // VIX check
+        if (this.vixLevel === 'EXTREME') {
+            issues.push('EXTREME_VIX');
+        } else if (this.vixLevel === 'HIGH') {
+            issues.push('HIGH_VIX');
+        }
 
         return {
             pass: issues.length === 0,
-            issues
+            issues,
+            vix: this.currentVix,
+            vixLevel: this.vixLevel
         };
+    }
+
+    stop() {
+        if (this.vixFetchInterval) {
+            clearInterval(this.vixFetchInterval);
+            this.vixFetchInterval = null;
+        }
     }
 }
 
