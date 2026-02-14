@@ -85,11 +85,75 @@ class RunnerEngineService {
         const atrExpansion = this.detectATRExpansion(history);
         if (atrExpansion) detections.push(atrExpansion);
 
-        if (detections.length >= 2) {
+        // STRICT RUNNER VALIDATION FOR SCREEN 2
+        const strictValidation = this.validateStrictRunner(history, currentPrice, currentVolume, detections, instrument);
+        
+        if (strictValidation.valid) {
             const runner = this.createRunnerRecord(instrument, history, currentPrice, currentVolume, detections);
+            runner.strictValidation = strictValidation;
             this.runners.set(token, runner);
             this.updateTopRunners();
         }
+    }
+
+    validateStrictRunner(history, currentPrice, currentVolume, detections, instrument) {
+        const validation = {
+            valid: false,
+            conditions: {},
+            failedConditions: []
+        };
+
+        // Condition 1: Price move >= 1.5% in 15 mins (approx 15 data points)
+        const recentHistory = history.slice(-15);
+        if (recentHistory.length >= 15) {
+            const firstPrice = recentHistory[0].price;
+            const movePercent = Math.abs((currentPrice - firstPrice) / firstPrice) * 100;
+            validation.conditions.priceMove15min = movePercent >= 1.5;
+            if (!validation.conditions.priceMove15min) {
+                validation.failedConditions.push(`Price move ${movePercent.toFixed(2)}% < 1.5%`);
+            }
+        } else {
+            validation.conditions.priceMove15min = false;
+            validation.failedConditions.push('Insufficient 15min history');
+        }
+
+        // Condition 2: Volume spike >= 3x
+        const volumeDetection = detections.find(d => d.type === 'VOLUME_SPIKE');
+        validation.conditions.volumeSpike3x = volumeDetection && volumeDetection.volumeRatio >= 3;
+        if (!validation.conditions.volumeSpike3x) {
+            const ratio = volumeDetection?.volumeRatio || 0;
+            validation.failedConditions.push(`Volume ${ratio.toFixed(2)}x < 3x`);
+        }
+
+        // Condition 3: Sector strength >= 60 percentile
+        const sectorData = this.sectorStrength.get(instrument.sector);
+        const sectorScore = sectorData?.outperformance || 0;
+        validation.conditions.sectorStrength = sectorScore >= 12; // 60 percentile = 12+ score
+        if (!validation.conditions.sectorStrength) {
+            validation.failedConditions.push(`Sector score ${sectorScore.toFixed(0)} < 12`);
+        }
+
+        // Condition 4: ATR expanding
+        const atrDetection = detections.find(d => d.type === 'ATR_EXPANSION');
+        validation.conditions.atrExpanding = !!atrDetection;
+        if (!validation.conditions.atrExpanding) {
+            validation.failedConditions.push('ATR not expanding');
+        }
+
+        // Condition 5: Liquidity > minimum threshold (50000 avg volume)
+        const avgVolume = history.reduce((sum, h) => sum + h.volume, 0) / history.length;
+        validation.conditions.liquidityOk = avgVolume >= 50000;
+        if (!validation.conditions.liquidityOk) {
+            validation.failedConditions.push(`Avg volume ${Math.round(avgVolume)} < 50000`);
+        }
+
+        // Runner is valid only if AT LEAST 4 out of 5 conditions pass
+        const passedCount = Object.values(validation.conditions).filter(v => v === true).length;
+        validation.valid = passedCount >= 4;
+        validation.passedCount = passedCount;
+        validation.totalConditions = 5;
+
+        return validation;
     }
 
     detectEarlyMove(history, currentPrice) {
