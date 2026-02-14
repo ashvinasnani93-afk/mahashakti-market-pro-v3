@@ -95,8 +95,15 @@ class MarketScannerLoopService {
     }
 
     async runBatchScan() {
+        // 🔴 CONFIRMATION: Scanner processes ONLY dynamic bucket, NOT all 7,965 instruments
         const allInstruments = instruments.getAll();
         const batchSize = settings.scanner.batchSize || 20;
+        
+        // In CORE_ONLY mode, skip full scanning
+        if (this.coreOnlyMode) {
+            console.log('[SCANNER_LOOP] CORE_ONLY: Skipping full batch scan');
+            return;
+        }
         
         const startIdx = this.currentBatchIndex * batchSize;
         const batch = allInstruments.slice(startIdx, startIdx + batchSize);
@@ -105,6 +112,7 @@ class MarketScannerLoopService {
             this.currentBatchIndex = 0;
             this.scanStats.rotationsPerformed++;
             this.promoteTopMomentum();
+            console.log(`[SCANNER_LOOP] Full rotation complete. Active scan bucket: ${this.priorityBuckets.ACTIVE.size + this.priorityBuckets.CORE.size} tokens (NOT all ${allInstruments.length})`);
             return;
         }
 
