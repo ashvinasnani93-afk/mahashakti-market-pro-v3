@@ -14,6 +14,18 @@ class RunnerEngineService {
         this.lastScan = null;
         this.topRunners = [];
         
+        // 🔴 INTRADAY CUMULATIVE TRACKER (Open → Current)
+        this.intradayTrackers = new Map();  // token -> { openPrice, currentPrice, percentMove, tiers }
+        this.tierAlerts = new Map();        // token -> [triggered tiers]
+        
+        // 🔴 PREMIUM GROWTH TRACKER (for options)
+        this.premiumTrackers = new Map();   // token -> { startPremium, currentPremium, percentGain, tiers }
+        this.premiumTierAlerts = new Map(); // token -> [triggered tiers]
+        
+        // Tier configurations
+        this.equityTiers = [8, 12, 15, 20];
+        this.premiumTiers = [50, 100, 200, 500, 1000];
+        
         this.config = {
             earlyMovePercent: 1.5,
             volumeSpikeMultiplier: 3,
