@@ -330,6 +330,7 @@ process.on('SIGINT', () => {
     scannerService.stop();
     systemMonitorService.stop();
     crossMarketContextService.stop();
+    globalRankingService.stop();
     safetyService.stop();
     wsService.disconnect();
     process.exit(0);
@@ -341,6 +342,7 @@ process.on('SIGTERM', () => {
     scannerService.stop();
     systemMonitorService.stop();
     crossMarketContextService.stop();
+    globalRankingService.stop();
     safetyService.stop();
     wsService.disconnect();
     process.exit(0);
