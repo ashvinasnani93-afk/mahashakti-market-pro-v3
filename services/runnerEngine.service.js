@@ -544,6 +544,12 @@ class RunnerEngineService {
             rangeBreakouts: this.rangeBreakouts.size,
             sectorsTracked: this.sectorStrength.size,
             priceHistoryTokens: this.priceHistory.size,
+            intradayTrackers: this.intradayTrackers.size,
+            premiumTrackers: this.premiumTrackers.size,
+            tierAlerts: {
+                equity: this.tierAlerts.size,
+                premium: this.premiumTierAlerts.size
+            },
             lastScan: this.lastScan
         };
     }
@@ -555,6 +561,10 @@ class RunnerEngineService {
         this.rangeBreakouts.clear();
         this.atrExpansions.clear();
         this.priceHistory.clear();
+        this.intradayTrackers.clear();
+        this.premiumTrackers.clear();
+        this.tierAlerts.clear();
+        this.premiumTierAlerts.clear();
         this.topRunners = [];
     }
 
@@ -564,6 +574,10 @@ class RunnerEngineService {
         this.volumeLeaders.clear();
         this.rangeBreakouts.clear();
         this.atrExpansions.clear();
+        this.intradayTrackers.clear();
+        this.premiumTrackers.clear();
+        this.tierAlerts.clear();
+        this.premiumTierAlerts.clear();
         this.topRunners = [];
         console.log('[RUNNER_ENGINE] Daily reset complete');
     }
