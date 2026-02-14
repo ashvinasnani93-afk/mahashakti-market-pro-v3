@@ -1,9 +1,169 @@
 const settings = require('../config/settings.config');
+const axios = require('axios');
+const config = require('../config/angel.config');
 
 class SafetyService {
     constructor() {
         this.config = settings.safety;
         this.rsiConfig = settings.indicators.rsi;
+        
+        // 🔴 VIX CONFIGURATION (Safety layer only)
+        this.vixConfig = {
+            lowThreshold: 12,       // VIX < 12 = Low volatility
+            normalThreshold: 18,    // VIX 12-18 = Normal
+            highThreshold: 25,      // VIX 18-25 = Elevated
+            extremeThreshold: 35,   // VIX > 35 = Extreme
+            refreshIntervalMs: 60000
+        };
+        
+        // VIX state
+        this.currentVix = 15;       // Default
+        this.vixLevel = 'NORMAL';
+        this.vixLastUpdate = null;
+        this.vixFetchInterval = null;
+    }
+
+    // 🔴 INITIALIZE VIX MONITORING
+    initializeVIXMonitoring() {
+        console.log('[SAFETY] Initializing VIX monitoring...');
+        this.fetchVIX();
+        
+        this.vixFetchInterval = setInterval(() => {
+            this.fetchVIX();
+        }, this.vixConfig.refreshIntervalMs);
+    }
+
+    // 🔴 FETCH VIX FROM INDIA VIX (NSE Token: 99926004)
+    async fetchVIX() {
+        try {
+            // India VIX token on NSE
+            const vixToken = '99926004';
+            
+            const response = await axios.get(
+                `${config.endpoints.base}/rest/secure/angelbroking/market/v1/quote`,
+                {
+                    params: {
+                        exchange: 'NSE',
+                        symboltoken: vixToken
+                    },
+                    headers: this.getAuthHeaders(),
+                    timeout: 10000
+                }
+            );
+            
+            if (response.data?.data?.ltp) {
+                this.currentVix = parseFloat(response.data.data.ltp);
+                this.vixLevel = this.getVIXLevel(this.currentVix);
+                this.vixLastUpdate = Date.now();
+                
+                console.log(`[SAFETY] VIX updated: ${this.currentVix.toFixed(2)} (${this.vixLevel})`);
+            }
+        } catch (error) {
+            // Fallback: Use default VIX if API fails
+            console.log('[SAFETY] VIX fetch failed, using default');
+        }
+    }
+
+    getAuthHeaders() {
+        // Simple headers - auth handled elsewhere
+        return {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        };
+    }
+
+    // 🔴 GET VIX LEVEL
+    getVIXLevel(vix) {
+        if (vix < this.vixConfig.lowThreshold) return 'LOW';
+        if (vix < this.vixConfig.normalThreshold) return 'NORMAL';
+        if (vix < this.vixConfig.highThreshold) return 'ELEVATED';
+        if (vix < this.vixConfig.extremeThreshold) return 'HIGH';
+        return 'EXTREME';
+    }
+
+    // 🔴 GET VIX-BASED PREMIUM BAND ADJUSTMENT
+    getVIXPremiumAdjustment() {
+        switch (this.vixLevel) {
+            case 'LOW':
+                return { minPremium: 3, maxPremium: 400, description: 'Tight premium band - Low VIX' };
+            case 'NORMAL':
+                return { minPremium: 3, maxPremium: 650, description: 'Normal premium band' };
+            case 'ELEVATED':
+                return { minPremium: 5, maxPremium: 800, description: 'Wider premium band - Elevated VIX' };
+            case 'HIGH':
+                return { minPremium: 10, maxPremium: 1200, description: 'Wide premium band - High VIX' };
+            case 'EXTREME':
+                return { minPremium: 15, maxPremium: 1500, description: 'Very wide premium band - Extreme VIX' };
+            default:
+                return { minPremium: 3, maxPremium: 650, description: 'Default premium band' };
+        }
+    }
+
+    // 🔴 CHECK IF STRONG SIGNAL SHOULD BE REDUCED (VIX high = fewer STRONG signals)
+    shouldReduceStrongSignals() {
+        return this.vixLevel === 'HIGH' || this.vixLevel === 'EXTREME';
+    }
+
+    // 🔴 GET VIX SAFETY CHECK
+    checkVIX() {
+        if (this.vixLevel === 'EXTREME') {
+            return {
+                name: 'VIX',
+                pass: false,
+                message: `Extreme VIX (${this.currentVix.toFixed(1)}) - Reduce exposure`,
+                critical: true,
+                vix: this.currentVix,
+                level: this.vixLevel
+            };
+        }
+        
+        if (this.vixLevel === 'HIGH') {
+            return {
+                name: 'VIX',
+                pass: false,
+                message: `High VIX (${this.currentVix.toFixed(1)}) - Trade with caution`,
+                critical: false,
+                vix: this.currentVix,
+                level: this.vixLevel
+            };
+        }
+        
+        if (this.vixLevel === 'ELEVATED') {
+            return {
+                name: 'VIX',
+                pass: true,
+                message: `Elevated VIX (${this.currentVix.toFixed(1)}) - Monitor closely`,
+                vix: this.currentVix,
+                level: this.vixLevel,
+                warning: true
+            };
+        }
+        
+        return {
+            name: 'VIX',
+            pass: true,
+            message: `VIX ${this.vixLevel} (${this.currentVix.toFixed(1)})`,
+            vix: this.currentVix,
+            level: this.vixLevel
+        };
+    }
+
+    // 🔴 SET VIX MANUALLY (for testing or external data)
+    setVIX(vixValue) {
+        this.currentVix = vixValue;
+        this.vixLevel = this.getVIXLevel(vixValue);
+        this.vixLastUpdate = Date.now();
+        console.log(`[SAFETY] VIX manually set: ${vixValue} (${this.vixLevel})`);
+    }
+
+    getVIXData() {
+        return {
+            vix: this.currentVix,
+            level: this.vixLevel,
+            lastUpdate: this.vixLastUpdate,
+            premiumAdjustment: this.getVIXPremiumAdjustment(),
+            shouldReduceStrong: this.shouldReduceStrongSignals()
+        };
     }
 
     runSafetyChecks(instrument, indicators, breakout, volumeConfirm, riskReward, regime) {
