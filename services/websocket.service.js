@@ -511,12 +511,12 @@ class FocusWebSocketService {
             return;
         }
 
-        const allTokens = new Set([
-            ...this.priorityBuckets.CORE,
-            ...this.priorityBuckets.ACTIVE,
-            ...this.priorityBuckets.EXPLOSION,
-            ...this.priorityBuckets.ROTATION
-        ]);
+        const allTokens = new Set();
+        for (const bucket of Object.values(this.priorityBuckets)) {
+            for (const token of bucket) {
+                allTokens.add(token);
+            }
+        }
 
         const currentTokens = new Set(this.subscriptions.keys());
 
