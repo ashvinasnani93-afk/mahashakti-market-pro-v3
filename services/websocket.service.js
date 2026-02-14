@@ -642,21 +642,12 @@ class FocusWebSocketService {
         this.enforceSubscriptionLimit();
     }
 
-    promoteToActive(tokens) {
-        if (!Array.isArray(tokens)) tokens = [tokens];
-        tokens.forEach(token => {
-            this.priorityBuckets.ROTATION.delete(token);
-            this.priorityBuckets.ACTIVE.add(token);
-        });
-        this.enforceSubscriptionLimit();
-        this.syncSubscriptions();
-    }
-
     demoteToRotation(tokens) {
         if (!Array.isArray(tokens)) tokens = [tokens];
         tokens.forEach(token => {
             if (!this.priorityBuckets.CORE.has(token)) {
                 this.priorityBuckets.ACTIVE.delete(token);
+                this.priorityBuckets.EXPLOSION.delete(token);
                 this.priorityBuckets.ROTATION.add(token);
             }
         });
@@ -681,6 +672,7 @@ class FocusWebSocketService {
         const inBuckets = new Set([
             ...this.priorityBuckets.CORE,
             ...this.priorityBuckets.ACTIVE,
+            ...this.priorityBuckets.EXPLOSION,
             ...this.priorityBuckets.ROTATION
         ]);
 
