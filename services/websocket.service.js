@@ -301,29 +301,87 @@ class FocusWebSocketService {
         const maxSubs = this.wsSettings.maxSubscriptions;
         const coreCount = this.priorityBuckets.CORE.size;
         const activeCount = this.priorityBuckets.ACTIVE.size;
+        const volumeCount = this.priorityBuckets.VOLUME_LEADERS.size;
+        const explosionCount = this.priorityBuckets.EXPLOSION.size;
         const rotationCount = this.priorityBuckets.ROTATION.size;
 
-        const total = coreCount + activeCount + rotationCount;
+        const total = coreCount + activeCount + volumeCount + explosionCount + rotationCount;
 
         if (total <= maxSubs) return;
 
         let excess = total - maxSubs;
 
         if (excess > 0 && rotationCount > 0) {
-            const rotationArray = Array.from(this.priorityBuckets.ROTATION);
-            const toRemove = rotationArray.slice(0, Math.min(excess, rotationCount));
+            const toRemove = this.evictLowActivity(this.priorityBuckets.ROTATION, Math.min(excess, rotationCount));
             toRemove.forEach(token => this.priorityBuckets.ROTATION.delete(token));
             excess -= toRemove.length;
         }
 
+        if (excess > 0 && volumeCount > 0) {
+            const toRemove = this.evictLowActivity(this.priorityBuckets.VOLUME_LEADERS, Math.min(excess, volumeCount));
+            toRemove.forEach(token => this.priorityBuckets.VOLUME_LEADERS.delete(token));
+            excess -= toRemove.length;
+        }
+
         if (excess > 0 && activeCount > 0) {
-            const activeArray = Array.from(this.priorityBuckets.ACTIVE);
-            const toRemove = activeArray.slice(0, Math.min(excess, activeCount));
+            const toRemove = this.evictLowActivity(this.priorityBuckets.ACTIVE, Math.min(excess, activeCount));
             toRemove.forEach(token => this.priorityBuckets.ACTIVE.delete(token));
             excess -= toRemove.length;
         }
 
-        console.log(`[WS] Enforced limit: CORE=${this.priorityBuckets.CORE.size}, ACTIVE=${this.priorityBuckets.ACTIVE.size}, ROTATION=${this.priorityBuckets.ROTATION.size}`);
+        console.log(`[WS] Enforced limit: CORE=${coreCount}, ACTIVE=${this.priorityBuckets.ACTIVE.size}, VOLUME=${this.priorityBuckets.VOLUME_LEADERS.size}, EXPLOSION=${explosionCount}, ROTATION=${this.priorityBuckets.ROTATION.size}`);
+    }
+
+    evictLowActivity(bucket, count) {
+        const tokens = Array.from(bucket);
+        const now = Date.now();
+        
+        const scored = tokens.map(token => {
+            const activity = this.tokenActivity.get(token) || { lastUpdate: 0, updateCount: 0 };
+            const ageMs = now - activity.lastUpdate;
+            const activityScore = activity.updateCount / Math.max(1, ageMs / 60000);
+            return { token, activityScore };
+        });
+
+        scored.sort((a, b) => a.activityScore - b.activityScore);
+        
+        return scored.slice(0, count).map(s => s.token);
+    }
+
+    recordTokenActivity(token) {
+        const existing = this.tokenActivity.get(token) || { lastUpdate: 0, updateCount: 0 };
+        this.tokenActivity.set(token, {
+            lastUpdate: Date.now(),
+            updateCount: existing.updateCount + 1
+        });
+    }
+
+    promoteToExplosion(tokens) {
+        if (!Array.isArray(tokens)) tokens = [tokens];
+        
+        tokens.forEach(token => {
+            Object.values(this.priorityBuckets).forEach(bucket => bucket.delete(token));
+            this.priorityBuckets.EXPLOSION.add(token);
+        });
+
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+        console.log(`[WS] Promoted ${tokens.length} tokens to EXPLOSION bucket`);
+    }
+
+    promoteToVolumeLeaders(tokens) {
+        if (!Array.isArray(tokens)) tokens = [tokens];
+        
+        tokens.forEach(token => {
+            if (!this.priorityBuckets.CORE.has(token) && !this.priorityBuckets.EXPLOSION.has(token)) {
+                this.priorityBuckets.ROTATION.delete(token);
+                this.priorityBuckets.ACTIVE.delete(token);
+                this.priorityBuckets.VOLUME_LEADERS.add(token);
+            }
+        });
+
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
     }
 
     syncSubscriptions() {
