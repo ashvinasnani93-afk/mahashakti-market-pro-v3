@@ -1,5 +1,4 @@
 const settings = require('../config/settings.config');
-const indicatorService = require('./indicator.service');
 
 class RankingService {
     constructor() {
