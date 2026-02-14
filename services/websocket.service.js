@@ -13,8 +13,12 @@ class FocusWebSocketService {
         this.priorityBuckets = {
             CORE: new Set(),
             ACTIVE: new Set(),
+            VOLUME_LEADERS: new Set(),
+            EXPLOSION: new Set(),
             ROTATION: new Set()
         };
+        this.tokenActivity = new Map();
+        this.lastActivityCheck = Date.now();
         
         this.priceCallbacks = [];
         this.connectionCallbacks = [];
