@@ -240,6 +240,200 @@ class CrowdingDetectorService {
         };
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // V6 UPGRADES: Late Breakout + PCR Extreme + OI Concentration
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * V6: Detect late breakout (parabolic + volume spike = retail entry)
+     */
+    detectLateBreakout(candles, volumeData) {
+        if (!candles || candles.length < 20) {
+            return { detected: false };
+        }
+
+        const result = {
+            detected: false,
+            type: null,
+            confidence: 0,
+            reason: null
+        };
+
+        // Get recent vs older data
+        const recent = candles.slice(-5);
+        const older = candles.slice(-20, -5);
+
+        // Calculate avg ranges
+        const recentAvgRange = recent.reduce((s, c) => s + (c.high - c.low), 0) / recent.length;
+        const olderAvgRange = older.reduce((s, c) => s + (c.high - c.low), 0) / older.length;
+
+        // Parabolic detection: recent range >> older range
+        const rangeExpansion = recentAvgRange / (olderAvgRange || 1);
+
+        // Volume spike detection
+        const recentAvgVol = recent.reduce((s, c) => s + (c.volume || 0), 0) / recent.length;
+        const olderAvgVol = older.reduce((s, c) => s + (c.volume || 0), 0) / older.length;
+        const volumeSpike = recentAvgVol / (olderAvgVol || 1);
+
+        // Price move from 20 candles ago
+        const startPrice = candles[candles.length - 20]?.close || 0;
+        const endPrice = candles[candles.length - 1]?.close || 0;
+        const movePercent = startPrice > 0 ? ((endPrice - startPrice) / startPrice) * 100 : 0;
+
+        // Late breakout conditions
+        if (rangeExpansion >= 2.5 && volumeSpike >= 3.0) {
+            result.detected = true;
+            result.type = 'PARABOLIC_VOLUME_SPIKE';
+            result.confidence = Math.min(100, (rangeExpansion * 15) + (volumeSpike * 10));
+            result.reason = `LATE_RETAIL_ENTRY: Range ${rangeExpansion.toFixed(1)}x + Volume ${volumeSpike.toFixed(1)}x`;
+        } else if (Math.abs(movePercent) >= 5 && volumeSpike >= 4.0) {
+            result.detected = true;
+            result.type = 'EXTENDED_MOVE_HIGH_VOLUME';
+            result.confidence = Math.min(100, (Math.abs(movePercent) * 8) + (volumeSpike * 8));
+            result.reason = `LATE_CHASE: ${movePercent.toFixed(1)}% move with ${volumeSpike.toFixed(1)}x volume`;
+        }
+
+        if (result.detected) {
+            console.log(`[CROWDING_DETECTOR] 🚨 LATE_BREAKOUT: ${result.type} | ${result.reason}`);
+        }
+
+        return {
+            ...result,
+            metrics: {
+                rangeExpansion,
+                volumeSpike,
+                movePercent
+            }
+        };
+    }
+
+    /**
+     * V6: Check for extreme OI concentration (one-sided positioning)
+     */
+    checkOIExtreme(underlying) {
+        const result = {
+            extreme: false,
+            direction: null,
+            concentration: 0,
+            reason: null
+        };
+
+        const crowding = this.state.crowdingAlerts.get(underlying);
+        if (!crowding) return result;
+
+        const pcr = crowding.pcr;
+
+        // Extreme call concentration
+        if (pcr < 0.4) {
+            result.extreme = true;
+            result.direction = 'EXTREME_CALL_HEAVY';
+            result.concentration = Math.round((1 - pcr) * 100);
+            result.reason = `OI_EXTREME: ${result.concentration}% call-biased (PCR ${pcr.toFixed(2)})`;
+        }
+        // Extreme put concentration
+        else if (pcr > 2.0) {
+            result.extreme = true;
+            result.direction = 'EXTREME_PUT_HEAVY';
+            result.concentration = Math.round((pcr / 2) * 100);
+            result.reason = `OI_EXTREME: ${result.concentration}% put-biased (PCR ${pcr.toFixed(2)})`;
+        }
+
+        return result;
+    }
+
+    /**
+     * V6: Check PCR extreme condition
+     */
+    checkPCRExtreme(underlying) {
+        const result = {
+            extreme: false,
+            level: 'NORMAL',
+            pcr: null,
+            action: 'NONE',
+            reason: null
+        };
+
+        const crowding = this.state.crowdingAlerts.get(underlying);
+        if (!crowding) return result;
+
+        result.pcr = crowding.pcr;
+        result.level = crowding.extremeLevel;
+
+        // Extreme bullish (everyone buying calls) - contrarian bearish signal
+        if (crowding.extremeLevel === 'EXTREME_BULLISH') {
+            result.extreme = true;
+            result.action = 'DOWNGRADE_BUY';
+            result.reason = `PCR_EXTREME_BULLISH: Market too complacent (PCR ${crowding.pcr.toFixed(2)})`;
+        }
+        // Extreme bearish (everyone buying puts) - contrarian bullish signal
+        else if (crowding.extremeLevel === 'EXTREME_BEARISH') {
+            result.extreme = true;
+            result.action = 'DOWNGRADE_SELL';
+            result.reason = `PCR_EXTREME_BEARISH: Market too fearful (PCR ${crowding.pcr.toFixed(2)})`;
+        }
+
+        return result;
+    }
+
+    /**
+     * V6: Full crowd psychology check (combines all V6 checks)
+     * Returns action: BLOCK / DOWNGRADE / PASS
+     */
+    fullCrowdCheck(underlying, signalType, candles, volumeData) {
+        const result = {
+            action: 'PASS',
+            confidenceAdjustment: 0,
+            warnings: [],
+            checks: []
+        };
+
+        // Check 1: Late breakout
+        const lateBreakout = this.detectLateBreakout(candles, volumeData);
+        result.checks.push({ name: 'LATE_BREAKOUT', ...lateBreakout });
+        
+        if (lateBreakout.detected) {
+            if (lateBreakout.confidence >= 80) {
+                result.action = 'BLOCK';
+                result.warnings.push(lateBreakout.reason);
+                return result;
+            } else {
+                result.confidenceAdjustment -= 15;
+                result.warnings.push(lateBreakout.reason);
+            }
+        }
+
+        // Check 2: OI extreme
+        const oiExtreme = this.checkOIExtreme(underlying);
+        result.checks.push({ name: 'OI_EXTREME', ...oiExtreme });
+        
+        if (oiExtreme.extreme) {
+            result.confidenceAdjustment -= 10;
+            result.warnings.push(oiExtreme.reason);
+        }
+
+        // Check 3: PCR extreme
+        const pcrExtreme = this.checkPCRExtreme(underlying);
+        result.checks.push({ name: 'PCR_EXTREME', ...pcrExtreme });
+        
+        if (pcrExtreme.extreme) {
+            // Check if signal direction conflicts with extreme
+            if ((pcrExtreme.action === 'DOWNGRADE_BUY' && signalType === 'BUY') ||
+                (pcrExtreme.action === 'DOWNGRADE_SELL' && signalType === 'SELL')) {
+                result.confidenceAdjustment -= 20;
+                result.warnings.push(pcrExtreme.reason);
+            }
+        }
+
+        // Determine final action
+        if (result.confidenceAdjustment <= -30) {
+            result.action = 'BLOCK';
+        } else if (result.confidenceAdjustment < 0) {
+            result.action = 'DOWNGRADE';
+        }
+
+        return result;
+    }
+
     /**
      * Get crowding data for underlying
      */
