@@ -429,10 +429,21 @@ class MasterSignalGuardService {
             liquidityTier: liquidityCheck.tier,
             correlation: corrCheck.correlation || 0,
             divergence: corrCheck.divergence || 0,
-            timeOfDay: todCheck.mode || 'NORMAL'
+            timeOfDay: todCheck.mode || 'NORMAL',
+            // V5: Ignition boost for confidence
+            ignitionStrength: result.signal.ignition?.strength || 0
         };
 
         const confidenceResult = confidenceScoringService.calculateScore(confidenceFactors);
+        
+        // V5: Apply ignition boost to confidence score
+        if (result.signal.ignition?.detected && result.signal.ignition.strength >= 50) {
+            const ignitionBoost = Math.round(result.signal.ignition.strength * 0.15);  // Up to 15 point boost
+            confidenceResult.score = Math.min(100, confidenceResult.score + ignitionBoost);
+            confidenceResult.ignitionBoost = ignitionBoost;
+            console.log(`[MASTER_GUARD] 🚀 IGNITION_BOOST: +${ignitionBoost} points | Final: ${confidenceResult.score}`);
+        }
+        
         result.confidenceScore = confidenceResult;
         result.checks.push({ name: 'CONFIDENCE_SCORE', ...confidenceResult });
 
