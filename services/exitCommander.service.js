@@ -92,6 +92,10 @@ class ExitCommanderService {
             strikePrice: positionData.strikePrice || 0,
             optionType: positionData.optionType || null, // 'CE' or 'PE'
             
+            // V6: Gamma collapse detection
+            entryGamma: positionData.gamma || 0,
+            entryDelta: positionData.delta || 0,
+            
             // Tracking state
             highWaterMark: positionData.entryPrice,
             lowWaterMark: positionData.entryPrice,
