@@ -100,7 +100,7 @@ class MasterSignalGuardService {
     constructor() {
         this.config = {
             strictMode: true,            // ALWAYS TRUE - No soft mode
-            minConfidenceScore: 60,      // V6: Increased from 45 to 60
+            minConfidenceScore: 52,      // V6.1: Adjusted from 60 to 52
             logAllBlocks: true
         };
 
@@ -117,9 +117,9 @@ class MasterSignalGuardService {
 
         this.initialized = false;
 
-        console.log('[MASTER_GUARD] Initializing Master Signal Guard V6...');
+        console.log('[MASTER_GUARD] Initializing Master Signal Guard V6.1...');
         console.log('[MASTER_GUARD] STRICT MODE: ENABLED - All guards are HARD BLOCKS');
-        console.log('[MASTER_GUARD] V6: Minimum confidence = 60');
+        console.log('[MASTER_GUARD] V6.1: Minimum confidence = 52');
         console.log('[MASTER_GUARD] Initialized');
     }
 
