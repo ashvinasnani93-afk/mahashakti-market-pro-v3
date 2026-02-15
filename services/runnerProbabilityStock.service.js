@@ -427,18 +427,22 @@ class RunnerProbabilityStockService {
             return { passed: false, multiple: null, reason: 'Insufficient candles' };
         }
 
-        const currentVolume = candles[candles.length - 1].volume;
-        const avgVolume = candles.slice(-this.config.volumeLookback).reduce((sum, c) => sum + c.volume, 0) 
-            / this.config.volumeLookback;
+        // Get recent 3 candles average (current session volume)
+        const recentVolumes = candles.slice(-3).map(c => c.volume);
+        const currentSessionVolume = recentVolumes.reduce((a, b) => a + b, 0) / 3;
         
-        const multiple = currentVolume / avgVolume;
+        // Get historical average (excluding last 3)
+        const historicalCandles = candles.slice(0, -3);
+        const avgVolume = historicalCandles.reduce((sum, c) => sum + c.volume, 0) / historicalCandles.length;
+        
+        const multiple = currentSessionVolume / (avgVolume || 1);
         const threshold = this.getActiveVolumeThreshold();
 
         return {
             passed: multiple >= threshold,
             multiple,
             avgVolume,
-            currentVolume,
+            currentSessionVolume,
             threshold,
             score: Math.min(100, (multiple / threshold) * 60)
         };
@@ -508,6 +512,20 @@ class RunnerProbabilityStockService {
         // Calculate ATR for recent and previous periods
         const recentATR = this.calculateATR(candles.slice(-this.config.atrLookback));
         const prevATR = this.calculateATR(candles.slice(-(this.config.atrLookback + 5), -5));
+
+        // Handle zero/near-zero ATR (compression scenario)
+        if (prevATR < 0.0001) {
+            // In compression, any ATR is expansion
+            return {
+                passed: recentATR > 0,
+                slope: recentATR > 0 ? 1 : 0,
+                recentATR,
+                prevATR,
+                threshold: this.config.minATRSlopeRise,
+                score: recentATR > 0 ? 80 : 0,
+                note: 'Compression base - any expansion is valid'
+            };
+        }
 
         const slope = (recentATR - prevATR) / prevATR;
 
