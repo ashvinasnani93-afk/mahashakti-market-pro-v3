@@ -27,9 +27,10 @@ class StructuralStoplossService {
      * @param {Array} candles - OHLCV candle data
      * @param {string} signalType - 'BUY' or 'SELL'
      * @param {number} entryPrice - Proposed entry price
+     * @param {boolean} isOption - Whether this is an option (default: false)
      * @returns {object} { valid: boolean, stoploss: number, target: number, rr: number }
      */
-    calculate(candles, signalType, entryPrice) {
+    calculate(candles, signalType, entryPrice, isOption = false) {
         if (!candles || candles.length < this.config.swingLookback) {
             return {
                 valid: false,
@@ -90,11 +91,16 @@ class StructuralStoplossService {
         const risk = Math.abs(entryPrice - stoploss);
         const riskPercent = (risk / entryPrice) * 100;
 
+        // V6: Use different thresholds for equity vs options
+        const maxRiskPercent = isOption 
+            ? this.config.maxStoplossPercentOption 
+            : this.config.maxStoplossPercentEquity;
+
         // Validate stoploss distance
-        if (riskPercent > this.config.maxStoplossPercent) {
+        if (riskPercent > maxRiskPercent) {
             return {
                 valid: false,
-                reason: `STRUCTURAL_SL_BLOCK: Risk ${riskPercent.toFixed(2)}% > ${this.config.maxStoplossPercent}% max`,
+                reason: `STRUCTURAL_SL_BLOCK: Risk ${riskPercent.toFixed(2)}% > ${maxRiskPercent}% max`,
                 stoploss: Math.round(stoploss * 100) / 100,
                 riskPercent: Math.round(riskPercent * 100) / 100,
                 target: null,
