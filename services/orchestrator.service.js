@@ -7,6 +7,11 @@ const safetyService = require('./safety.service');
 const signalCooldownService = require('./signalCooldown.service');
 const adaptiveFilterService = require('./adaptiveFilter.service');
 
+// ============================================================
+// 🔴 INSTITUTIONAL GUARDS - HARD ENFORCEMENT (NOT OPTIONAL)
+// ============================================================
+const masterSignalGuardService = require('./masterSignalGuard.service');
+
 class OrchestratorService {
     constructor() {
         this.signalHistory = new Map();
@@ -14,6 +19,11 @@ class OrchestratorService {
         this.lastAnalysis = new Map();
         this.signalRankScores = new Map();
         this.cooldownEnabled = true;
+        this.guardStats = {
+            signalsGenerated: 0,
+            signalsBlocked: 0,
+            blockReasons: new Map()
+        };
     }
 
     async analyzeInstrument(instrument, candles5m, candles15m, candlesDaily) {
