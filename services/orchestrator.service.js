@@ -541,6 +541,42 @@ class OrchestratorService {
 
         this.signalRankScores.set(instrument.token, rankScore);
 
+        // ============================================================
+        // 🔴 MASTER SIGNAL GUARD - HARD ENFORCEMENT
+        // ALL 39+ INSTITUTIONAL GUARDS MUST PASS BEFORE SIGNAL EMISSION
+        // NO BYPASS. NO INFLUENCE-ONLY. HARD BLOCK ONLY.
+        // ============================================================
+        this.guardStats.signalsGenerated++;
+        
+        const guardResult = masterSignalGuardService.validateSignalSync(signal, analysisData.candles || []);
+        
+        if (!guardResult.allowed) {
+            this.guardStats.signalsBlocked++;
+            const blockReason = guardResult.blockReasons[0] || 'UNKNOWN_BLOCK';
+            const reasonKey = blockReason.split(':')[0];
+            this.guardStats.blockReasons.set(reasonKey, 
+                (this.guardStats.blockReasons.get(reasonKey) || 0) + 1
+            );
+            
+            console.log(`[ORCHESTRATOR] 🚫 SIGNAL_BLOCKED | ${instrument.symbol} | ${signalType} | Reason: ${blockReason}`);
+            return null;
+        }
+
+        // Apply any adjustments from guard (upgrades/downgrades)
+        if (guardResult.signal && guardResult.signal.type !== signal.signal) {
+            console.log(`[ORCHESTRATOR] ⚡ SIGNAL_ADJUSTED | ${instrument.symbol} | ${signal.signal} → ${guardResult.signal.type}`);
+            signal.signal = guardResult.signal.type;
+            signal.guardAdjusted = true;
+        }
+
+        signal.guardValidation = {
+            passed: true,
+            checksRun: guardResult.checks?.length || 0,
+            confidenceScore: guardResult.confidenceScore?.score || null,
+            confidenceGrade: guardResult.confidenceScore?.grade || null,
+            warnings: guardResult.warnings || []
+        };
+
         return signal;
     }
 
