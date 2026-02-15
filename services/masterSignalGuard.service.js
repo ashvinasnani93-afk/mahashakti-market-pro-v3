@@ -1,12 +1,30 @@
 /**
- * MASTER SIGNAL GUARD SERVICE - V2
+ * MASTER SIGNAL GUARD SERVICE - V6 ADAPTIVE INTELLIGENCE
  * ═══════════════════════════════════════════════════════════════════════════
- * HARD ENFORCEMENT LAYER - ALL 39+ GUARDS IN SIGNAL FLOW
+ * HARD ENFORCEMENT LAYER - ALL 29+ GUARDS IN SIGNAL FLOW
  * 
- * THIS IS NOT OPTIONAL. THIS IS NOT INFLUENCE-ONLY.
- * IF ANY CHECK FAILS → SIGNAL BLOCKED. PERIOD.
+ * V6 ADDITIONS:
+ * - Adaptive Regime (dynamic thresholds)
+ * - Execution Reality (slippage guard)
+ * - Portfolio Commander (risk management)
+ * - V6 Crowd Psychology (late breakout + PCR extreme)
+ * - Signal Lifecycle tracking
+ * - Confidence 2.0 (minimum 60)
+ * 
+ * NEW PIPELINE ORDER:
+ * ADAPTIVE_REGIME → IGNITION → TRADING_HOURS → CLOCK → PANIC → CIRCUIT → 
+ * LIQUIDITY → EXECUTION_REALITY → PORTFOLIO_COMMANDER → ...existing... → 
+ * CROWDING → CORRELATION → CONFIDENCE → EMIT
  * ═══════════════════════════════════════════════════════════════════════════
  */
+
+// Phase 0: V6 ADAPTIVE REGIME (FIRST - Sets dynamic thresholds)
+let adaptiveRegimeService = null;
+try {
+    adaptiveRegimeService = require('./adaptiveRegime.service');
+} catch (e) {
+    console.log('[MASTER_GUARD] Adaptive Regime not available');
+}
 
 // Phase 1: Data Integrity
 const calendarService = require('./calendar.service');
@@ -22,6 +40,22 @@ const panicKillSwitchService = require('./panicKillSwitch.service');
 const circuitBreakerService = require('./circuitBreaker.service');
 const latencyMonitorService = require('./latencyMonitor.service');
 const drawdownGuardService = require('./drawdownGuard.service');
+
+// Phase 2.5: V6 EXECUTION REALITY (Slippage Guard)
+let executionRealityService = null;
+try {
+    executionRealityService = require('./executionReality.service');
+} catch (e) {
+    console.log('[MASTER_GUARD] Execution Reality not available');
+}
+
+// Phase 2.6: V6 PORTFOLIO COMMANDER (Risk Management)
+let portfolioCommanderService = null;
+try {
+    portfolioCommanderService = require('./portfolioCommander.service');
+} catch (e) {
+    console.log('[MASTER_GUARD] Portfolio Commander not available');
+}
 
 // Phase 3: Liquidity & Structure
 const liquidityTierService = require('./liquidityTier.service');
@@ -43,8 +77,16 @@ const breadthService = require('./breadth.service');
 const crowdingDetectorService = require('./crowdingDetector.service');
 const correlationEngineService = require('./correlationEngine.service');
 
-// Confidence Scoring
+// Confidence Scoring V6
 const confidenceScoringService = require('./confidenceScoring.service');
+
+// V6: Signal Lifecycle Tracking
+let signalLifecycleService = null;
+try {
+    signalLifecycleService = require('./signalLifecycle.service');
+} catch (e) {
+    console.log('[MASTER_GUARD] Signal Lifecycle not available');
+}
 
 // WebSocket for ignition promotion
 let websocketService = null;
@@ -58,7 +100,9 @@ class MasterSignalGuardService {
     constructor() {
         this.config = {
             strictMode: true,            // ALWAYS TRUE - No soft mode
-            minConfidenceScore: 45,      // Minimum confidence for emission
+            minConfidenceScore: 60,      // V6: Increased from 45 to 60
+            logAllBlocks: true
+        };
             logAllBlocks: true
         };
 
