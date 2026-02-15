@@ -1,28 +1,28 @@
+# Dependencies
 node_modules/
+
+# Environment files (NEVER commit)
 .env
+*.env
+.env.*
+
+# Logs
 *.log
+logs/
+
+# OS files
 .DS_Store
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Test files (if any remain)
+test_*.js
+*_test.js
+*.test.js
+
+# Temp files
+*.tmp
+*.temp
