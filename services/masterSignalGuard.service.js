@@ -1,24 +1,44 @@
 /**
- * MASTER SIGNAL GUARD SERVICE - V6 ADAPTIVE INTELLIGENCE
+ * MASTER SIGNAL GUARD SERVICE - V7 ELITE MODE
  * ═══════════════════════════════════════════════════════════════════════════
- * HARD ENFORCEMENT LAYER - ALL 29+ GUARDS IN SIGNAL FLOW
+ * HARD ENFORCEMENT LAYER - ALL 30+ GUARDS IN SIGNAL FLOW
  * 
- * V6 ADDITIONS:
- * - Adaptive Regime (dynamic thresholds)
- * - Execution Reality (slippage guard)
- * - Portfolio Commander (risk management)
- * - V6 Crowd Psychology (late breakout + PCR extreme)
- * - Signal Lifecycle tracking
- * - Confidence 2.0 (minimum 60)
+ * V7 ADDITIONS:
+ * - Elite Runner Detection (Stock + Option)
+ * - Dynamic Circuit-Aware Entry Logic
+ * - Acceleration-Based Option Scoring
+ * - Zone-Based Entry Validation
  * 
- * NEW PIPELINE ORDER:
- * ADAPTIVE_REGIME → IGNITION → TRADING_HOURS → CLOCK → PANIC → CIRCUIT → 
- * LIQUIDITY → EXECUTION_REALITY → PORTFOLIO_COMMANDER → ...existing... → 
- * CROWDING → CORRELATION → CONFIDENCE → EMIT
+ * NEW PIPELINE ORDER (V7):
+ * IGNITION → ELITE_RUNNER_CHECK → ADAPTIVE_REGIME → HARD_GUARDS → 
+ * CONFIDENCE → EMIT
+ * 
+ * Elite cannot bypass:
+ * - Structural SL
+ * - Execution Reality
+ * - Portfolio Commander
+ * - Drawdown Guard
+ * - Circuit Logic
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-// Phase 0: V6 ADAPTIVE REGIME (FIRST - Sets dynamic thresholds)
+// V7: Elite Runner Detection (NEW)
+let runnerProbabilityStockService = null;
+let runnerProbabilityOptionService = null;
+try {
+    runnerProbabilityStockService = require('./runnerProbabilityStock.service');
+    console.log('[MASTER_GUARD] V7 Elite Runner Stock loaded');
+} catch (e) {
+    console.log('[MASTER_GUARD] Elite Runner Stock not available');
+}
+try {
+    runnerProbabilityOptionService = require('./runnerProbabilityOption.service');
+    console.log('[MASTER_GUARD] V7 Elite Runner Option loaded');
+} catch (e) {
+    console.log('[MASTER_GUARD] Elite Runner Option not available');
+}
+
+// Phase 0: V6 ADAPTIVE REGIME (Sets dynamic thresholds)
 let adaptiveRegimeService = null;
 try {
     adaptiveRegimeService = require('./adaptiveRegime.service');
