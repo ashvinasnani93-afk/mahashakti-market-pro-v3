@@ -103,8 +103,6 @@ class MasterSignalGuardService {
             minConfidenceScore: 60,      // V6: Increased from 45 to 60
             logAllBlocks: true
         };
-            logAllBlocks: true
-        };
 
         this.stats = {
             signalsChecked: 0,
@@ -113,10 +111,15 @@ class MasterSignalGuardService {
             blockReasons: new Map()
         };
 
+        // V6: Track current regime for dynamic thresholds
+        this.currentRegime = 'UNKNOWN';
+        this.currentThresholds = null;
+
         this.initialized = false;
 
-        console.log('[MASTER_GUARD] Initializing Master Signal Guard V2...');
+        console.log('[MASTER_GUARD] Initializing Master Signal Guard V6...');
         console.log('[MASTER_GUARD] STRICT MODE: ENABLED - All guards are HARD BLOCKS');
+        console.log('[MASTER_GUARD] V6: Minimum confidence = 60');
         console.log('[MASTER_GUARD] Initialized');
     }
 
