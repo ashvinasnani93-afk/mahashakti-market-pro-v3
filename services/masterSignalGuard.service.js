@@ -267,7 +267,27 @@ class MasterSignalGuardService {
         // ════════════════════════════════════════════════════════════════
         if (isOption) {
             // ──────────────────────────────────────────────────────────────
-            // 1️⃣5️⃣ THETA ENGINE (HARD - Expiry crush, Deep OTM)
+            // 1️⃣6️⃣ EXPIRY ROLLOVER CHECK (HARD - Expiry mismatch blocked)
+            // ──────────────────────────────────────────────────────────────
+            const expiryStatus = expiryRolloverService.getStatus();
+            const symbolExpiry = this.extractExpiryFromSymbol(signal?.instrument?.symbol);
+            if (symbolExpiry && expiryStatus.currentExpiry) {
+                const expiryMismatch = symbolExpiry !== expiryStatus.currentExpiry;
+                result.checks.push({ 
+                    name: 'EXPIRY_ROLLOVER', 
+                    valid: !expiryMismatch,
+                    currentExpiry: expiryStatus.currentExpiry,
+                    symbolExpiry: symbolExpiry
+                });
+                if (expiryMismatch && expiryStatus.rolloverNeeded) {
+                    return this.blockSignal(result, `EXPIRY_MISMATCH_BLOCKED: Symbol expiry ${symbolExpiry} != Current ${expiryStatus.currentExpiry}`);
+                }
+            } else {
+                result.checks.push({ name: 'EXPIRY_ROLLOVER', valid: true, reason: 'EXPIRY_OK' });
+            }
+
+            // ──────────────────────────────────────────────────────────────
+            // 1️⃣7️⃣ THETA ENGINE (HARD - Expiry crush, Deep OTM)
             // ──────────────────────────────────────────────────────────────
             const thetaCheck = thetaEngineService.checkSignal(token);
             result.checks.push({ name: 'THETA_ENGINE', ...thetaCheck });
@@ -276,7 +296,7 @@ class MasterSignalGuardService {
             }
 
             // ──────────────────────────────────────────────────────────────
-            // 1️⃣6️⃣ SPREAD FILTER (HARD - >15% spread blocked)
+            // 1️⃣8️⃣ SPREAD FILTER (HARD - >15% spread blocked)
             // ──────────────────────────────────────────────────────────────
             const depthCheck = orderbookDepthService.checkSignal(token);
             result.checks.push({ name: 'ORDERBOOK_DEPTH', ...depthCheck });
@@ -285,7 +305,7 @@ class MasterSignalGuardService {
             }
 
             // ──────────────────────────────────────────────────────────────
-            // 1️⃣7️⃣ GAMMA CLUSTER (UPGRADE potential, not block)
+            // 1️⃣9️⃣ GAMMA CLUSTER (UPGRADE potential, not block)
             // ──────────────────────────────────────────────────────────────
             const gammaCheck = gammaClusterService.checkSignal(underlying, signalType);
             result.checks.push({ name: 'GAMMA_CLUSTER', ...gammaCheck });
