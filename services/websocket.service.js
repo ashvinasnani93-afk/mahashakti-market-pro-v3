@@ -543,6 +543,66 @@ class FocusWebSocketService {
         this.syncSubscriptions();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // 🔴 V5: IGNITION-BASED CORE PROMOTION (NO WAIT FOR ROTATION CYCLE)
+    // ═══════════════════════════════════════════════════════════════════════════════
+    promoteOnIgnition(token, ignitionType, ignitionStrength) {
+        if (!token) return false;
+        
+        // Skip if already in CORE
+        if (this.priorityBuckets.CORE.has(token)) {
+            return false;
+        }
+        
+        // Remove from all other buckets
+        for (const [bucketName, bucket] of Object.entries(this.priorityBuckets)) {
+            if (bucketName !== 'CORE') {
+                bucket.delete(token);
+            }
+        }
+        
+        // Determine promotion target based on ignition type and strength
+        if (ignitionStrength >= 70) {
+            // High ignition → ACTIVE bucket (immediate priority)
+            if (ignitionType === 'STOCK') {
+                this.priorityBuckets.ACTIVE_EQUITY.add(token);
+            } else {
+                this.priorityBuckets.ACTIVE_OPTIONS.add(token);
+            }
+            console.log(`[WS] 🚀 CORE_PROMOTION: ${token} | IGNITION_TRIGGERED | Type: ${ignitionType} | Strength: ${ignitionStrength}`);
+        } else if (ignitionStrength >= 50) {
+            // Medium ignition → HIGH_RS or HIGH_OI
+            if (ignitionType === 'STOCK') {
+                this.priorityBuckets.HIGH_RS.add(token);
+            } else {
+                this.priorityBuckets.HIGH_OI.add(token);
+            }
+            console.log(`[WS] 📈 PRIORITY_PROMOTION: ${token} | IGNITION_MEDIUM | Strength: ${ignitionStrength}`);
+        } else {
+            // Low ignition → just move to front of rotation
+            const rotationArray = Array.from(this.priorityBuckets.ROTATION);
+            rotationArray.unshift(token);
+            this.priorityBuckets.ROTATION = new Set(rotationArray);
+            console.log(`[WS] ⚡ ROTATION_FRONT: ${token} | IGNITION_LOW | Strength: ${ignitionStrength}`);
+        }
+        
+        // Enforce limits and sync
+        this.enforceSubscriptionLimit();
+        this.syncSubscriptions();
+        
+        return true;
+    }
+
+    // Get ignition-promoted tokens
+    getIgnitionPromotedTokens() {
+        return {
+            activeEquity: Array.from(this.priorityBuckets.ACTIVE_EQUITY),
+            activeOptions: Array.from(this.priorityBuckets.ACTIVE_OPTIONS),
+            highRS: Array.from(this.priorityBuckets.HIGH_RS),
+            highOI: Array.from(this.priorityBuckets.HIGH_OI)
+        };
+    }
+
     syncSubscriptions() {
         // Skip if CORE only mode
         if (this.coreOnlyMode) {
