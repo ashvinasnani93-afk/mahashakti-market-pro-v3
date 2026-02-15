@@ -47,7 +47,7 @@ const GUARD_CLASSIFICATION = [
     { name: 'LATENCY_MONITOR', type: 'HARD', position: 9, description: 'Block on high latency' },
     
     // V6 NEW GUARDS
-    { name: 'EXECUTION_REALITY', type: 'HARD', position: 10, description: 'Block on spread widen/depth collapse/parabolic' },
+    { name: 'EXECUTION_REALITY', type: 'CONDITIONAL_HARD', position: 10, description: 'Block only on extreme spread collapse (80%+)' },
     { name: 'PORTFOLIO_COMMANDER', type: 'HARD', position: 11, description: 'Block on max positions/loss streak/exposure' },
     
     // PHASE 3: RISK GUARDS
@@ -60,12 +60,12 @@ const GUARD_CLASSIFICATION = [
     { name: 'TIME_OF_DAY', type: 'ADJUST', position: 16, description: 'Adjusts for opening/lunch/closing' },
     { name: 'GAP_DAY', type: 'ADJUST', position: 17, description: 'Adjusts for gap up/down days' },
     { name: 'CANDLE_INTEGRITY', type: 'HARD', position: 18, description: 'Block on insufficient candle data' },
-    { name: 'STRUCTURAL_STOPLOSS', type: 'HARD', position: 19, description: 'Block if risk > 3% or RR < 1.5' },
+    { name: 'STRUCTURAL_STOPLOSS', type: 'HARD', position: 19, description: 'Block if equity risk>4.5% or option>6%' },
     
     // OPTIONS GUARDS
     { name: 'EXPIRY_ROLLOVER', type: 'HARD', position: 20, description: 'Block wrong expiry options' },
     { name: 'THETA_ENGINE', type: 'HARD', position: 21, description: 'Block deep OTM/theta crush' },
-    { name: 'ORDERBOOK_DEPTH', type: 'HARD', position: 22, description: 'Block >15% spread options' },
+    { name: 'ORDERBOOK_DEPTH', type: 'HARD', position: 22, description: 'Block >18% spread options' },
     { name: 'GAMMA_CLUSTER', type: 'ADJUST', position: 23, description: 'Upgrades near gamma walls' },
     
     // FINAL PHASE
@@ -73,7 +73,7 @@ const GUARD_CLASSIFICATION = [
     { name: 'V6_CROWD_PSYCHOLOGY', type: 'HARD', position: 25, description: 'Block late breakout/PCR extreme' },
     { name: 'CROWDING_DETECTOR', type: 'WARN', position: 26, description: 'Warns on trap risk' },
     { name: 'CORRELATION', type: 'WARN', position: 27, description: 'Warns on low correlation' },
-    { name: 'CONFIDENCE_SCORE', type: 'HARD', position: 28, description: 'Block if score < 60' }
+    { name: 'CONFIDENCE_SCORE', type: 'HARD', position: 28, description: 'Block if score < 52' }
 ];
 
 console.log('┌────────────────────────────┬──────────┬──────────┬─────────────────────────────────────┐');
@@ -150,10 +150,13 @@ const V5_CONFIG = {
     minRR: 1.2
 };
 
-// V6 Config (new thresholds)  
+// V6.1 Config (adjusted thresholds)  
 const V6_CONFIG = {
-    minConfidence: 60,
-    maxRiskPercent: 3,
+    minConfidence: 52,           // Was 60, now 52
+    maxRiskPercentEquity: 4.5,   // Was 3, now 4.5%
+    maxRiskPercentOption: 6,     // New: 6% for options
+    maxSpreadEquity: 0.8,        // Was 0.5%, now 0.8%
+    maxSpreadOption: 18,         // Was 15%, now 18%
     minRR: 1.5
 };
 
