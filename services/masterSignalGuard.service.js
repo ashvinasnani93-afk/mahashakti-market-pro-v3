@@ -237,6 +237,31 @@ class MasterSignalGuardService {
             }
         }
 
+        // ──────────────────────────────────────────────────────────────
+        // 1️⃣5️⃣ STRUCTURAL STOPLOSS (HARD - No structure = No signal)
+        // ──────────────────────────────────────────────────────────────
+        if (candles && candles.length >= 20 && !isOption) {
+            const slCheck = structuralStoplossService.calculate(
+                candles,
+                signalType,
+                signal?.price || candles[candles.length - 1]?.close || 0
+            );
+            result.checks.push({ name: 'STRUCTURAL_STOPLOSS', ...slCheck });
+            if (!slCheck.valid) {
+                return this.blockSignal(result, slCheck.reason);
+            }
+            // Attach SL data to signal
+            result.signal.structuralSL = {
+                stoploss: slCheck.stoploss,
+                target: slCheck.target,
+                rr: slCheck.rr,
+                riskPercent: slCheck.riskPercent,
+                structureType: slCheck.structureType
+            };
+        } else if (!isOption) {
+            result.checks.push({ name: 'STRUCTURAL_STOPLOSS', valid: true, reason: 'SKIPPED: Insufficient candles' });
+        }
+
         // ════════════════════════════════════════════════════════════════
         // OPTIONS-SPECIFIC CHECKS (Only if isOption)
         // ════════════════════════════════════════════════════════════════
