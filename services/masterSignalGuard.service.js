@@ -13,6 +13,10 @@ const calendarService = require('./calendar.service');
 const clockSyncService = require('./clockSync.service');
 const candleIntegrityService = require('./candleIntegrity.service');
 
+// Phase 1.5: IGNITION DETECTION (V5 - Early Move Detection)
+const microIgnitionStockService = require('./microIgnitionStock.service');
+const microIgnitionOptionService = require('./microIgnitionOption.service');
+
 // Phase 2: Market Risk (CRITICAL - Block First)
 const panicKillSwitchService = require('./panicKillSwitch.service');
 const circuitBreakerService = require('./circuitBreaker.service');
@@ -41,6 +45,14 @@ const correlationEngineService = require('./correlationEngine.service');
 
 // Confidence Scoring
 const confidenceScoringService = require('./confidenceScoring.service');
+
+// WebSocket for ignition promotion
+let websocketService = null;
+try {
+    websocketService = require('./websocket.service');
+} catch (e) {
+    console.log('[MASTER_GUARD] WebSocket service not available for ignition promotion');
+}
 
 class MasterSignalGuardService {
     constructor() {
