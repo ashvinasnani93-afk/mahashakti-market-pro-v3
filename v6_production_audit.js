@@ -324,11 +324,12 @@ console.log(`│    Vol collapse threshold:                  │ ${((trailConfig
 console.log(`│    Breadth collapse threshold:              │ ${(trailConfig.breadthCollapseThreshold + '%').padEnd(19)} │`);
 
 // Q4: Gamma collapse detection?
+const hasGammaCollapse = trailConfig.gammaCollapseThreshold !== undefined;
 console.log(`│ 4. Option exit covers:                      │                     │`);
 console.log(`│    - Theta acceleration:                    │ ${'YES (2x threshold)'.padEnd(19)} │`);
 console.log(`│    - IV crush:                              │ ${'YES (15% drop)'.padEnd(19)} │`);
 console.log(`│    - OI reversal:                           │ ${'YES (10% reversal)'.padEnd(19)} │`);
-console.log(`│    - Gamma collapse:                        │ ${'NO (not in scope)'.padEnd(19)} │`);
+console.log(`│    - Gamma collapse:                        │ ${(hasGammaCollapse ? 'YES (30% drop)' : 'NO').padEnd(19)} │`);
 
 console.log('└────────────────────────────────────────────────────────────────────┘\n');
 
