@@ -97,13 +97,11 @@ function setupServiceData() {
         askQty: 800
     });
     
-    // Setup expiry using setExpiries
+    // Setup expiry using setExpiries - getNextThursday already returns formatted string
     const today = new Date();
-    const nextThursday = expiryRollover.getNextThursday(today);
-    expiryRollover.setExpiries(
-        expiryRollover.formatDate(nextThursday),
-        expiryRollover.formatDate(new Date(nextThursday.getTime() + 7 * 24 * 60 * 60 * 1000))
-    );
+    const currentExpiry = expiryRollover.getThisThursday(today);
+    const nextExpiry = expiryRollover.getNextThursday(today);
+    expiryRollover.setExpiries(currentExpiry, nextExpiry);
     
     console.log('[TEST_MODE] ✓ Service data pre-populated for options testing');
 }
