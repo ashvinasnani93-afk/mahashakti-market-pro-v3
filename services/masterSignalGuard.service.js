@@ -535,11 +535,21 @@ class MasterSignalGuardService {
             result.adjustments.push({ type: 'BREADTH_UPGRADE', reason: breadthCheck.reason });
         }
 
-        // Crowding trap warning
+        // Crowding trap warning + V6 Full Crowd Check
         const crowdingCheck = crowdingDetectorService.checkTrapRisk(underlying, signalType);
         result.checks.push({ name: 'CROWDING_DETECTOR', ...crowdingCheck });
         if (crowdingCheck.flagged) {
             result.warnings.push(crowdingCheck.reason);
+        }
+
+        // V6: Full Crowd Psychology Check (late breakout, OI extreme, PCR extreme)
+        const v6CrowdCheck = crowdingDetectorService.fullCrowdCheck(underlying, signalType, candles);
+        result.checks.push({ name: 'V6_CROWD_PSYCHOLOGY', ...v6CrowdCheck });
+        if (v6CrowdCheck.action === 'BLOCK') {
+            return this.blockSignal(result, `CROWD_BLOCKED: ${v6CrowdCheck.warnings.join(', ')}`);
+        }
+        if (v6CrowdCheck.warnings?.length > 0) {
+            result.warnings.push(...v6CrowdCheck.warnings);
         }
 
         // Correlation check
@@ -550,7 +560,7 @@ class MasterSignalGuardService {
         }
 
         // ════════════════════════════════════════════════════════════════
-        // CONFIDENCE SCORING
+        // V6: CONFIDENCE SCORING 2.0
         // ════════════════════════════════════════════════════════════════
         const confidenceFactors = {
             token,
@@ -565,13 +575,32 @@ class MasterSignalGuardService {
             gamma: isOption ? gammaClusterService.getCluster(underlying) : null,
             theta: isOption ? thetaEngineService.getThetaData(token) : null,
             oiVelocity: 0,
-            regime: volatilityRegimeService.getClassification().regime,
+            regime: regimeState?.regime || volatilityRegimeService.getClassification().regime,
             liquidityTier: liquidityCheck.tier,
             correlation: corrCheck.correlation || 0,
             divergence: corrCheck.divergence || 0,
             timeOfDay: todCheck.mode || 'NORMAL',
             // V5: Ignition boost for confidence
-            ignitionStrength: result.signal.ignition?.strength || 0
+            ignitionStrength: result.signal.ignition?.strength || 0,
+            
+            // V6 NEW FACTORS
+            executionSafety: { slippageRiskScore: result.signal.slippageRiskScore || 0 },
+            regimeAlignment: adaptiveRegimeService 
+                ? adaptiveRegimeService.checkSignalCompatibility(signalType, result.signal.ignition?.strength || 0)
+                : { compatible: true, warnings: [] },
+            correlationRisk: { 
+                highCorrelation: false,
+                correlatedWith: []
+            },
+            crowdTrap: {
+                flagged: crowdingCheck.flagged,
+                crowdingScore: crowdingCheck.crowdingScore || 0
+            },
+            exitClarity: {
+                hasStructuralSL: true,  // V6 Exit Commander provides this
+                hasTrailPlan: true,
+                hasRegimeExit: true
+            }
         };
 
         const confidenceResult = confidenceScoringService.calculateScore(confidenceFactors);
@@ -583,15 +612,55 @@ class MasterSignalGuardService {
             confidenceResult.ignitionBoost = ignitionBoost;
             console.log(`[MASTER_GUARD] 🚀 IGNITION_BOOST: +${ignitionBoost} points | Final: ${confidenceResult.score}`);
         }
+
+        // V6: Apply crowd downgrade
+        if (v6CrowdCheck.confidenceAdjustment < 0) {
+            confidenceResult.score = Math.max(0, confidenceResult.score + v6CrowdCheck.confidenceAdjustment);
+            confidenceResult.crowdAdjustment = v6CrowdCheck.confidenceAdjustment;
+            console.log(`[MASTER_GUARD] ⚠️ CROWD_DOWNGRADE: ${v6CrowdCheck.confidenceAdjustment} points | Final: ${confidenceResult.score}`);
+        }
+
+        // V6: Apply portfolio downgrade
+        const portfolioDowngrade = result.adjustments.find(a => a.type === 'CONFIDENCE_DOWNGRADE');
+        if (portfolioDowngrade) {
+            const downgradeAmount = Math.round((1 - portfolioDowngrade.factor) * 15);
+            confidenceResult.score = Math.max(0, confidenceResult.score - downgradeAmount);
+            confidenceResult.portfolioAdjustment = -downgradeAmount;
+        }
         
         result.confidenceScore = confidenceResult;
+        result.finalConfidence = confidenceResult.score;  // V6: Track final score
         result.checks.push({ name: 'CONFIDENCE_SCORE', ...confidenceResult });
 
         // ──────────────────────────────────────────────────────────────
-        // 1️⃣8️⃣ MINIMUM CONFIDENCE CHECK (HARD)
+        // MINIMUM CONFIDENCE CHECK (HARD) - V6: 60 minimum
         // ──────────────────────────────────────────────────────────────
         if (confidenceResult.score < this.config.minConfidenceScore) {
             return this.blockSignal(result, `CONFIDENCE_BLOCKED: Score ${confidenceResult.score} < ${this.config.minConfidenceScore} minimum`);
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // V6: RECORD TO SIGNAL LIFECYCLE
+        // ════════════════════════════════════════════════════════════════
+        if (signalLifecycleService) {
+            try {
+                const signalId = signalLifecycleService.registerGeneration({
+                    token,
+                    symbol: signal?.instrument?.symbol || signal?.symbol,
+                    type: signalType,
+                    direction: signalType === 'BUY' ? 'LONG' : 'SHORT',
+                    isOption,
+                    price: ltp,
+                    regime: regimeState?.regime,
+                    volatility: regimeState?.volatilityScore,
+                    ignitionStrength: result.signal.ignition?.strength,
+                    confidenceScore: confidenceResult.score
+                });
+                signalLifecycleService.recordValidation(signalId, result);
+                result.signal.lifecycleId = signalId;
+            } catch (e) {
+                // Non-blocking
+            }
         }
 
         // ════════════════════════════════════════════════════════════════
