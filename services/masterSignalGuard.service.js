@@ -224,6 +224,156 @@ class MasterSignalGuardService {
         }
 
         // ================================================================
+        // V7: ELITE RUNNER CHECK (AFTER IGNITION, BEFORE REGIME)
+        // Dynamic zone-based entry validation
+        // ================================================================
+        let eliteRunnerResult = { passed: true, score: 0, isElite: false, zone: null };
+        
+        if (runnerProbabilityStockService && !isOption && candles && candles.length >= 20) {
+            // Stock Elite Runner check
+            const openPrice = signal?.openPrice || candles[0]?.open || ltp * 0.99;
+            const circuitLimits = signal?.circuitLimits || { upper: openPrice * 1.10, lower: openPrice * 0.90 };
+            const niftyChange = signal?.niftyChange || 0;
+            const vwap = signal?.vwap || ltp;
+            const structuralSL = signal?.structuralSL?.riskPercent || 4;
+            const confidence = signal?.confidence || 55;
+            const blockOrderScore = signal?.blockOrderScore || 0;
+            
+            eliteRunnerResult = runnerProbabilityStockService.evaluate({
+                symbol: signal?.instrument?.symbol || token,
+                token,
+                currentPrice: ltp,
+                openPrice,
+                spread: spreadPercent,
+                niftyChange,
+                circuitLimits,
+                confidence,
+                structuralSL,
+                vwap,
+                candles,
+                blockOrderScore
+            });
+            
+            result.checks.push({ 
+                name: 'ELITE_RUNNER_STOCK', 
+                passed: eliteRunnerResult.passed,
+                score: eliteRunnerResult.score,
+                zone: eliteRunnerResult.zone,
+                isElite: eliteRunnerResult.isElite,
+                blockers: eliteRunnerResult.blockers?.length || 0
+            });
+            
+            // Apply elite boost
+            if (eliteRunnerResult.isElite) {
+                result.signal.eliteRunner = {
+                    tag: 'ELITE_RUNNER',
+                    score: eliteRunnerResult.score,
+                    zone: eliteRunnerResult.zone,
+                    confidenceBoost: eliteRunnerResult.confidenceBoost
+                };
+                result.adjustments.push({
+                    type: 'ELITE_BOOST',
+                    reason: `Elite Runner detected (Score: ${eliteRunnerResult.score}, Zone: ${eliteRunnerResult.zone})`,
+                    boost: eliteRunnerResult.confidenceBoost
+                });
+            } else if (eliteRunnerResult.passed) {
+                result.signal.eliteRunner = {
+                    tag: 'RUNNER',
+                    score: eliteRunnerResult.score,
+                    zone: eliteRunnerResult.zone
+                };
+            }
+            
+            // Block if elite runner check failed (but don't block ignition)
+            if (!eliteRunnerResult.passed && eliteRunnerResult.blockers?.length > 0) {
+                // Only warn, don't hard block - let other guards decide
+                result.warnings.push({
+                    type: 'ELITE_RUNNER_FAIL',
+                    reason: eliteRunnerResult.blockers[0]?.reason || 'Elite criteria not met',
+                    zone: eliteRunnerResult.zone
+                });
+            }
+        } else if (runnerProbabilityOptionService && isOption && candles && candles.length >= 5) {
+            // Option Elite Runner check
+            const openPremium = signal?.openPremium || candles[0]?.open || ltp * 0.95;
+            const underlyingChange = signal?.underlyingChange || 0;
+            const underlyingDirection = underlyingChange > 0 ? 'BULLISH' : 'BEARISH';
+            const optionType = signal?.optionType || (signalType?.includes('BUY') ? 'CE' : 'PE');
+            const oi = signal?.oi || 0;
+            const prevOI = signal?.prevOI || oi * 0.9;
+            const delta = signal?.delta;
+            const prevDelta = signal?.prevDelta;
+            const theta = signal?.theta;
+            const iv = signal?.iv;
+            const prevIV = signal?.prevIV;
+            const strikeDistance = signal?.strikeDistance || 2;
+            const confidence = signal?.confidence || 55;
+            const structuralSL = signal?.structuralSL?.riskPercent || 5;
+            
+            eliteRunnerResult = runnerProbabilityOptionService.evaluate({
+                symbol: signal?.instrument?.symbol || token,
+                token,
+                currentPremium: ltp,
+                openPremium,
+                spread: spreadPercent,
+                underlyingChange,
+                underlyingDirection,
+                optionType,
+                oi,
+                prevOI,
+                delta,
+                prevDelta,
+                theta,
+                iv,
+                prevIV,
+                strikeDistance,
+                confidence,
+                structuralSL,
+                candles
+            });
+            
+            result.checks.push({ 
+                name: 'ELITE_RUNNER_OPTION', 
+                passed: eliteRunnerResult.passed,
+                score: eliteRunnerResult.score,
+                zone: eliteRunnerResult.zone,
+                isElite: eliteRunnerResult.isElite,
+                accelerationScore: eliteRunnerResult.accelerationScore
+            });
+            
+            // Apply elite boost
+            if (eliteRunnerResult.isElite) {
+                result.signal.eliteRunner = {
+                    tag: 'ELITE_RUNNER',
+                    score: eliteRunnerResult.score,
+                    zone: eliteRunnerResult.zone,
+                    acceleration: eliteRunnerResult.accelerationScore,
+                    confidenceBoost: eliteRunnerResult.confidenceBoost
+                };
+                result.adjustments.push({
+                    type: 'ELITE_BOOST',
+                    reason: `Elite Option Runner (Score: ${eliteRunnerResult.score}, Accel: ${eliteRunnerResult.accelerationScore})`,
+                    boost: eliteRunnerResult.confidenceBoost
+                });
+            } else if (eliteRunnerResult.passed) {
+                result.signal.eliteRunner = {
+                    tag: 'RUNNER',
+                    score: eliteRunnerResult.score,
+                    zone: eliteRunnerResult.zone
+                };
+            }
+            
+            // Block if elite runner check failed
+            if (!eliteRunnerResult.passed && eliteRunnerResult.blockers?.length > 0) {
+                result.warnings.push({
+                    type: 'ELITE_RUNNER_FAIL',
+                    reason: eliteRunnerResult.blockers[0]?.reason || 'Elite criteria not met',
+                    zone: eliteRunnerResult.zone
+                });
+            }
+        }
+
+        // ================================================================
         // V6: ADAPTIVE REGIME CHECK (BEFORE ALL VALIDATION)
         // Sets dynamic thresholds based on market regime
         // ================================================================
