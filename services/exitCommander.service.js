@@ -719,6 +719,79 @@ class ExitCommanderService {
         return { exit: false };
     }
 
+    /**
+     * D4: V6 NEW - Check Gamma Collapse exit
+     * Detects when gamma exposure is collapsing near expiry or after big moves
+     */
+    checkGammaCollapse(token, position, marketData) {
+        if (!position.isOption) {
+            return { exit: false };
+        }
+
+        const { gamma, delta, underlyingPrice, strikeDistance } = marketData;
+
+        // Need gamma data to check
+        if (gamma === undefined || gamma === null) {
+            return { exit: false };
+        }
+
+        const entryGamma = position.entryGamma || 0;
+        const entryDelta = position.entryDelta || 0;
+
+        // Check 1: Gamma collapse (gamma dropped significantly)
+        if (entryGamma > 0 && gamma >= 0) {
+            const gammaDropPercent = ((entryGamma - gamma) / entryGamma);
+            
+            if (gammaDropPercent >= this.config.gammaCollapseThreshold) {
+                return {
+                    exit: true,
+                    reason: `GAMMA_COLLAPSE: Gamma dropped ${(gammaDropPercent * 100).toFixed(1)}% (${entryGamma.toFixed(4)} → ${gamma.toFixed(4)})`,
+                    entryGamma,
+                    currentGamma: gamma,
+                    gammaDropPercent,
+                    priority: 'HIGH'
+                };
+            }
+        }
+
+        // Check 2: Delta acceleration (option moving too fast = gamma risk)
+        if (entryDelta !== 0 && delta !== undefined) {
+            const deltaChange = Math.abs(delta - entryDelta);
+            const deltaAcceleration = deltaChange / Math.abs(entryDelta);
+            
+            if (deltaAcceleration >= this.config.deltaAccelerationThreshold) {
+                return {
+                    exit: true,
+                    reason: `DELTA_ACCELERATION: Delta moved ${(deltaAcceleration * 100).toFixed(1)}% (${entryDelta.toFixed(2)} → ${delta.toFixed(2)})`,
+                    entryDelta,
+                    currentDelta: delta,
+                    deltaAcceleration,
+                    priority: 'HIGH'
+                };
+            }
+        }
+
+        // Check 3: Approaching gamma wall (underlying near major strike cluster)
+        if (underlyingPrice && strikeDistance !== undefined) {
+            const distancePercent = Math.abs(strikeDistance) / underlyingPrice * 100;
+            
+            if (distancePercent <= this.config.gammaClusterProximity) {
+                // Near gamma wall - high gamma exposure risk
+                if (position.currentPnL > 1) {  // Only exit in profit near gamma wall
+                    return {
+                        exit: true,
+                        reason: `GAMMA_WALL_PROXIMITY: ${distancePercent.toFixed(2)}% from major strike`,
+                        strikeDistance,
+                        distancePercent,
+                        priority: 'MEDIUM'
+                    };
+                }
+            }
+        }
+
+        return { exit: false };
+    }
+
     // ════════════════════════════════════════════════════════════════════════════
     // UTILITY METHODS
     // ════════════════════════════════════════════════════════════════════════════
