@@ -220,18 +220,24 @@ class MasterSignalGuardService {
                     valid: true
                 });
                 
-                // Check signal-regime compatibility
-                if (regimeState.thresholds) {
+                // Check signal-regime compatibility (WARNING only, not hard block)
+                if (regimeState.thresholds && ignitionResult.strength > 0) {
                     const compatibility = adaptiveRegimeService.checkSignalCompatibility(
                         signalType, 
                         ignitionResult.strength
                     );
                     
                     if (!compatibility.compatible) {
-                        return this.blockSignal(result, `REGIME_INCOMPATIBLE: Signal strength ${ignitionResult.strength} < ${regimeState.thresholds.ignitionMinStrength} for ${regimeState.regime}`);
+                        // Soft warning, not hard block - let other guards decide
+                        result.warnings.push(`REGIME_WARNING: Signal strength ${ignitionResult.strength} < ${regimeState.thresholds.ignitionMinStrength} for ${regimeState.regime}`);
+                        result.adjustments.push({
+                            type: 'REGIME_INCOMPATIBLE',
+                            factor: 0.8,  // 20% confidence reduction
+                            reason: `Weak signal for ${regimeState.regime} regime`
+                        });
                     }
                     
-                    // Add warnings
+                    // Add other warnings
                     result.warnings.push(...compatibility.warnings);
                 }
             } catch (e) {
