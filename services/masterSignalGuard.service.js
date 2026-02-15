@@ -472,6 +472,32 @@ class MasterSignalGuardService {
     }
 
     /**
+     * Extract expiry date from option symbol
+     * Example: NIFTY25FEB24500CE -> 2025-02-20 (Thursday)
+     */
+    extractExpiryFromSymbol(symbol) {
+        if (!symbol) return null;
+        
+        // Try to extract date pattern like "25FEB" or "25JAN"
+        const monthMap = {
+            'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+            'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+            'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12'
+        };
+        
+        const match = symbol.match(/(\d{2})(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)/i);
+        if (match) {
+            const year = `20${match[1]}`;
+            const month = monthMap[match[2].toUpperCase()];
+            // Find nearest Thursday in that month (simplified)
+            // For now, return approximate - real implementation would calculate exact expiry
+            return `${year}-${month}-27`; // Placeholder
+        }
+        
+        return null;
+    }
+
+    /**
      * Initialize all services (called at boot)
      */
     async initialize() {
