@@ -137,9 +137,10 @@ class MasterSignalGuardService {
 
         this.initialized = false;
 
-        console.log('[MASTER_GUARD] Initializing Master Signal Guard V6.1...');
+        console.log('[MASTER_GUARD] Initializing Master Signal Guard V7 ELITE...');
         console.log('[MASTER_GUARD] STRICT MODE: ENABLED - All guards are HARD BLOCKS');
-        console.log('[MASTER_GUARD] V6.1: Minimum confidence = 52');
+        console.log('[MASTER_GUARD] V7: Elite Runner Detection ENABLED');
+        console.log('[MASTER_GUARD] V7: Minimum confidence = 52');
         console.log('[MASTER_GUARD] Initialized');
     }
 
