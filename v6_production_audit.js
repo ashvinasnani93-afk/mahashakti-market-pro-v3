@@ -122,8 +122,8 @@ function generateRandomSignal(day, hour) {
         type: 'BUY',
         price: basePrice,
         isOption: Math.random() > 0.7,
-        spreadPercent: 0.1 + Math.random() * 0.5,
-        strength: 40 + Math.random() * 50,
+        spreadPercent: 0.1 + Math.random() * 0.6,  // V6.1: 0.1-0.7% spread range
+        strength: 45 + Math.random() * 40,  // V6.1: 45-85 strength range (higher floor)
         day, hour
     };
 }
@@ -131,12 +131,20 @@ function generateRandomSignal(day, hour) {
 function generateCandles(basePrice, count) {
     const candles = [];
     let price = basePrice;
+    // V6.1: Generate realistic candles with proper swing structure
+    // Create candles with 1-2% moves (not 5-20% random swings)
     for (let i = 0; i < count; i++) {
-        price = price * (1 + (Math.random() - 0.5) * 0.02);
+        const movePercent = (Math.random() - 0.5) * 0.015;  // 0.75% max per candle
+        price = price * (1 + movePercent);
+        
+        // Realistic high/low within 0.3-0.5% range
+        const spread = 0.003 + Math.random() * 0.002;
         candles.push({
             timestamp: Date.now() - (count - i) * 300000,
-            open: price * 0.999, high: price * 1.005,
-            low: price * 0.995, close: price,
+            open: price * (1 - spread/2),
+            high: price * (1 + spread),
+            low: price * (1 - spread),
+            close: price,
             volume: 50000 + Math.random() * 50000
         });
     }
