@@ -203,6 +203,44 @@ class MasterSignalGuardService {
         }
 
         // ================================================================
+        // V6: ADAPTIVE REGIME CHECK (BEFORE ALL VALIDATION)
+        // Sets dynamic thresholds based on market regime
+        // ================================================================
+        let regimeState = { regime: 'UNKNOWN', volatilityScore: 50, thresholds: null };
+        if (adaptiveRegimeService) {
+            try {
+                regimeState = adaptiveRegimeService.getState();
+                this.currentRegime = regimeState.regime;
+                this.currentThresholds = regimeState.thresholds;
+                
+                result.checks.push({
+                    name: 'ADAPTIVE_REGIME',
+                    regime: regimeState.regime,
+                    volatilityScore: regimeState.volatilityScore,
+                    valid: true
+                });
+                
+                // Check signal-regime compatibility
+                if (regimeState.thresholds) {
+                    const compatibility = adaptiveRegimeService.checkSignalCompatibility(
+                        signalType, 
+                        ignitionResult.strength
+                    );
+                    
+                    if (!compatibility.compatible) {
+                        return this.blockSignal(result, `REGIME_INCOMPATIBLE: Signal strength ${ignitionResult.strength} < ${regimeState.thresholds.ignitionMinStrength} for ${regimeState.regime}`);
+                    }
+                    
+                    // Add warnings
+                    result.warnings.push(...compatibility.warnings);
+                }
+            } catch (e) {
+                // Non-blocking - continue with default thresholds
+                result.checks.push({ name: 'ADAPTIVE_REGIME', skipped: true, error: e.message });
+            }
+        }
+
+        // ================================================================
         // VALIDATION PIPELINE - STRICT SEQUENTIAL ORDER
         // IF ANY CHECK FAILS → IMMEDIATE BLOCK
         // ================================================================
