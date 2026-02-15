@@ -13,7 +13,7 @@ class OrderbookDepthService {
         };
 
         this.config = {
-            spreadBlockThreshold: 15,    // Block if spread > 15% of premium
+            spreadBlockThreshold: 18,    // Block if spread > 18% of premium (was 15%)
             imbalanceBlockThreshold: 5,  // Block if imbalance ratio > 5x
             minDepthLevels: 5,           // Minimum depth levels to analyze
             updateIntervalMs: 5000

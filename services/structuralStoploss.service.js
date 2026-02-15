@@ -11,7 +11,8 @@ class StructuralStoplossService {
             atrPeriod: 14,
             atrMultiplier: 1.5,          // Buffer = ATR * multiplier
             minRR: 1.5,                  // Minimum Risk-Reward ratio
-            maxStoplossPercent: 3,       // Max 3% stoploss from entry
+            maxStoplossPercentEquity: 4.5,   // Max 4.5% stoploss for equity
+            maxStoplossPercentOption: 6,     // Max 6% stoploss for options
             minStoplossPercent: 0.3      // Min 0.3% stoploss
         };
 

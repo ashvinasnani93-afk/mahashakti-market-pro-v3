@@ -28,8 +28,8 @@ class ConfidenceScoringService {
             exitClarity: 5        // Exit plan clarity
         };
 
-        // V6: Minimum threshold increased to 60
-        this.minimumThreshold = 60;  // HARD MINIMUM for emit
+        // V6: Minimum threshold adjusted to 52 (from 60)
+        this.minimumThreshold = 52;  // HARD MINIMUM for emit
         this.strongSignalThreshold = 75;  // For STRONG_BUY/SELL
 
         this.scoreHistory = new Map();  // token -> score history

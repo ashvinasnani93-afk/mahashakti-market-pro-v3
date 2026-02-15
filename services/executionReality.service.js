@@ -22,10 +22,10 @@
 class ExecutionRealityService {
     constructor() {
         this.config = {
-            // Spread thresholds
-            spreadWideningThreshold: 50,     // 50% spread widening = block
-            maxSpreadEquity: 0.5,            // 0.5% max spread for equity
-            maxSpreadOption: 15,             // 15% max spread for options
+            // Spread thresholds - V6 ADJUSTED
+            spreadWideningThreshold: 80,     // 80% spread widening = block (extreme only)
+            maxSpreadEquity: 0.8,            // 0.8% max spread for equity (was 0.5%)
+            maxSpreadOption: 18,             // 18% max spread for options (was 15%)
             
             // Orderbook depth
             depthCollapseThreshold: 40,      // 40% depth reduction = block
