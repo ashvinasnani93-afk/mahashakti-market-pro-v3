@@ -98,6 +98,62 @@ class MasterSignalGuardService {
         const signalType = signal?.type || signal?.signal;
         const underlying = signal?.underlying || this.getUnderlying(signal);
         const isOption = signal?.isOption || this.isOptionInstrument(signal);
+        const ltp = signal?.price || 0;
+        const spreadPercent = signal?.spreadPercent || 0;
+
+        // ================================================================
+        // V5: IGNITION DETECTION (FIRST - BEFORE ANY VALIDATION)
+        // Early move detection at 1-1.5% instead of 15%
+        // ================================================================
+        let ignitionResult = { detected: false, strength: 0 };
+        
+        if (!isOption && candles && candles.length >= 20) {
+            // Stock ignition detection
+            ignitionResult = microIgnitionStockService.detectIgnition(
+                token, 
+                candles, 
+                ltp,
+                spreadPercent,
+                100  // Default circuit distance
+            );
+        } else if (isOption && candles && candles.length >= 5) {
+            // Option ignition detection
+            const oiCurrent = signal?.oi || 0;
+            const underlyingDirection = signal?.underlyingDirection || 0;
+            const thetaImpact = signal?.thetaImpact || 0;
+            
+            ignitionResult = microIgnitionOptionService.detectIgnition(
+                token,
+                candles,
+                oiCurrent,
+                spreadPercent,
+                underlyingDirection,
+                thetaImpact
+            );
+        }
+        
+        result.checks.push({ 
+            name: 'IGNITION_CHECK', 
+            detected: ignitionResult.detected, 
+            strength: ignitionResult.strength,
+            type: ignitionResult.type
+        });
+        
+        // Store ignition data for later use
+        result.signal.ignition = {
+            detected: ignitionResult.detected,
+            strength: ignitionResult.strength,
+            type: ignitionResult.type || (isOption ? 'OPTION' : 'STOCK')
+        };
+        
+        // If ignition detected, trigger CORE promotion
+        if (ignitionResult.detected && websocketService) {
+            try {
+                websocketService.promoteOnIgnition(token, ignitionResult.type, ignitionResult.strength);
+            } catch (e) {
+                // Silent fail - don't block signal for WS error
+            }
+        }
 
         // ================================================================
         // VALIDATION PIPELINE - STRICT SEQUENTIAL ORDER
