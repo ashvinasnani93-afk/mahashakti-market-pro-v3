@@ -26,3 +26,7 @@ test_*.js
 # Temp files
 *.tmp
 *.temp
+-e 
+# Environment files
+*.env
+*.env.*
