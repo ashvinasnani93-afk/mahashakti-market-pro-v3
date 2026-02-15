@@ -312,6 +312,61 @@ class MasterSignalGuardService {
         }
 
         // ──────────────────────────────────────────────────────────────
+        // V6: EXECUTION REALITY (HARD - Slippage Guard)
+        // ──────────────────────────────────────────────────────────────
+        if (executionRealityService) {
+            const execCheck = executionRealityService.checkExecution({
+                token,
+                spreadPercent,
+                bidDepth: signal?.bidDepth,
+                askDepth: signal?.askDepth,
+                lastCandle: candles?.length > 0 ? candles[candles.length - 1] : null,
+                price: ltp,
+                volatility: regimeState?.volatilityScore
+            });
+            result.checks.push({ name: 'EXECUTION_REALITY', ...execCheck });
+            if (!execCheck.allowed) {
+                return this.blockSignal(result, `EXECUTION_BLOCKED: ${execCheck.blockReason}`);
+            }
+            if (execCheck.warnings?.length > 0) {
+                result.warnings.push(...execCheck.warnings);
+            }
+            // Store slippage score for confidence calculation
+            result.signal.slippageRiskScore = execCheck.slippageRiskScore;
+        }
+
+        // ──────────────────────────────────────────────────────────────
+        // V6: PORTFOLIO COMMANDER (HARD - Risk Management)
+        // ──────────────────────────────────────────────────────────────
+        if (portfolioCommanderService) {
+            const portfolioCheck = portfolioCommanderService.checkSignal(
+                {
+                    token,
+                    symbol: signal?.instrument?.symbol || signal?.symbol,
+                    sector: signal?.sector,
+                    underlying,
+                    isOption,
+                    riskAmount: signal?.riskAmount
+                },
+                regimeState?.regime || 'UNKNOWN'
+            );
+            result.checks.push({ name: 'PORTFOLIO_COMMANDER', ...portfolioCheck });
+            if (!portfolioCheck.allowed) {
+                return this.blockSignal(result, `PORTFOLIO_BLOCKED: ${portfolioCheck.blockReason}`);
+            }
+            if (portfolioCheck.action === 'DOWNGRADE') {
+                result.adjustments.push({
+                    type: 'CONFIDENCE_DOWNGRADE',
+                    factor: portfolioCheck.downgradeFactor,
+                    reason: 'Portfolio risk adjustment'
+                });
+            }
+            if (portfolioCheck.warnings?.length > 0) {
+                result.warnings.push(...portfolioCheck.warnings);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────
         // 8️⃣ DRAWDOWN GUARD (HARD)
         // ──────────────────────────────────────────────────────────────
         const drawdownCheck = drawdownGuardService.shouldAllowSignals();
