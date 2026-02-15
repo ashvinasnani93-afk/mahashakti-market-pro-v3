@@ -140,8 +140,10 @@ class MicroIgnitionStockService {
         // ─────────────────────────────────────────────────────────────────────────
         // CONDITION 6: Not circuit proximity (<18% from circuit)
         // ─────────────────────────────────────────────────────────────────────────
+        // circuitPercent = distance from circuit (100 = far, 5 = close)
+        // We want: NOT in circuit proximity, so circuitPercent should be HIGH (>18)
         result.conditions.circuitSafe.value = circuitPercent.toFixed(1);
-        result.conditions.circuitSafe.passed = circuitPercent < this.config.circuitProximityThreshold;
+        result.conditions.circuitSafe.passed = circuitPercent > this.config.circuitProximityThreshold;
 
         // ─────────────────────────────────────────────────────────────────────────
         // CALCULATE IGNITION STRENGTH
