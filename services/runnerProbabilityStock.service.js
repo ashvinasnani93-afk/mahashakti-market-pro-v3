@@ -1,126 +1,110 @@
 /**
- * RUNNER PROBABILITY STOCK SERVICE - V7 ELITE MODE
+ * RUNNER PROBABILITY STOCK SERVICE - V7 ELITE MODE (FINAL)
  * ═══════════════════════════════════════════════════════════════════════════
- * ELITE RUNNER DETECTION FOR STOCKS
+ * DYNAMIC CIRCUIT-AWARE ELITE RUNNER DETECTION
  * 
- * HARD FILTERS (ALL MUST PASS):
- * 1. Move ≤ 3% from open (no late entry)
- * 2. Opening compression ≤ 0.6%
- * 3. Volume ≥ 2.5x (20-period avg)
- * 4. Volume structure proxy (replaces delivery)
- * 5. RS ≥ +2% vs NIFTY
- * 6. ATR expansion slope rising
- * 7. Spread ≤ 0.6%
- * 8. No exhaustion wick > 40%
- * 9. Not near circuit (<3% from limit)
- * 10. Gap < 4% OR base formed
- * 11. Structural SL ≤ 4.5%
- * 12. Confidence ≥ 60
- * 13. RunnerScore ≥ 75
+ * NO FIXED % BLOCKS - INTELLIGENT ZONE-BASED ENTRY
  * 
- * ELITE_RUNNER: Score ≥ 85 → +8 confidence, CORE priority
+ * ZONES:
+ * 🟢 0-2%   : Early ignition, light filters
+ * 🟢 2-5%   : Strong volume, RS confirmation
+ * 🟡 5-8%   : Structure check, remaining room ≥3%
+ * 🟠 8-9.5% : Only if circuit 10%, room ≥1.5%
+ * 🔴 <1% room: No fresh entry
  * 
- * AUTO-ADJUST (if 0 signals):
- * - RunnerScore: 85 → 80 → 75
- * - Volume: 2.5x → 2.0x
- * - NEVER loosen: Spread, Structural SL
+ * ELITE_RUNNER: Score ≥ 85 → +8 confidence boost
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
 class RunnerProbabilityStockService {
     constructor() {
-        // Hard filter thresholds (NEVER LOOSEN marked)
+        // Zone-based thresholds
+        this.zones = {
+            EARLY: { min: 0, max: 2 },      // 0-2% move
+            STRONG: { min: 2, max: 5 },     // 2-5% move
+            EXTENDED: { min: 5, max: 8 },   // 5-8% move
+            LATE: { min: 8, max: 9.5 }      // 8-9.5% move (only 10% circuit stocks)
+        };
+
+        // Zone-specific requirements
+        this.zoneConfig = {
+            EARLY: {
+                minVolume: 2.0,
+                minRS: 1.5,
+                maxSpread: 0.8,
+                minRemainingRoom: 5,
+                requireVWAP: false,
+                requireHigherLow: false
+            },
+            STRONG: {
+                minVolume: 2.5,
+                minRS: 2.0,
+                maxSpread: 0.7,
+                minRemainingRoom: 4,
+                requireVWAP: true,
+                requireHigherLow: false,
+                noExhaustionWick: true
+            },
+            EXTENDED: {
+                minVolume: 2.5,
+                minRS: 2.0,
+                maxSpread: 0.6,
+                minRemainingRoom: 3,
+                maxSL: 4.5,
+                requireVWAP: true,
+                requireHigherLow: true,
+                requireATRExpanding: true
+            },
+            LATE: {
+                minVolume: 3.0,
+                minRS: 2.5,
+                maxSpread: 0.5,
+                minRemainingRoom: 1.5,
+                maxSL: 3.5,
+                requireVWAP: true,
+                requireHigherLow: true,
+                noRejectionWick: true,
+                requireMomentumIntact: true,
+                onlyFor10PercentCircuit: true
+            }
+        };
+
+        // Global config (NEVER LOOSEN)
         this.config = {
-            // Move filter
-            maxMoveFromOpen: 3,          // Max 3% move from open
-            
-            // Compression filter
-            maxOpeningCompression: 0.6,   // Max 0.6% opening range
-            
-            // Volume filters (CAN ADJUST)
-            minVolumeMultiple: 2.5,       // Min 2.5x avg volume
-            volumeLookback: 20,           // 20-period average
-            minVolumeCluster: 1.5,        // 15-min volume clustering
-            
-            // RS filter
-            minRSvsNifty: 2,              // Min +2% RS vs NIFTY
-            
-            // ATR filter
-            atrLookback: 14,
-            minATRSlopeRise: 0.1,         // ATR must be rising
-            
-            // Spread filter (NEVER LOOSEN)
-            maxSpread: 0.6,               // Max 0.6% spread
-            
-            // Wick filter
-            maxExhaustionWick: 40,        // Max 40% wick
-            
-            // Circuit filter
-            circuitProximity: 3,          // Block if within 3% of circuit
-            
-            // Gap filter
-            maxGapWithoutBase: 4,         // Max 4% gap unless base formed
-            
-            // Base formation
-            baseMinCandles: 3,
-            baseMaxCandles: 8,
-            baseMaxRangeATR: 1.2,         // Range < 1.2 ATR
-            gapHoldMinMinutes: 10,
-            maxGapFillPercent: 40,
-            
-            // SL filter (NEVER LOOSEN)
-            maxStructuralSL: 4.5,         // Max 4.5% SL
-            
-            // Confidence filter
-            minConfidence: 60,
-            
-            // Runner score thresholds (CAN ADJUST)
-            minRunnerScore: 75,
+            absoluteMinRoom: 1,              // <1% room = NO ENTRY
             eliteRunnerScore: 85,
             eliteConfidenceBoost: 8,
-            
-            // Auto-adjust levels
-            autoAdjustLevels: {
-                runnerScore: [85, 80, 75],
-                volumeMultiple: [2.5, 2.0, 1.8]
-            }
+            minConfidence: 60,
+            volumeLookback: 20
         };
 
         // Score weights (total = 100)
         this.scoreWeights = {
-            moveFromOpen: 15,        // Early entry = high weight
-            volumeStrength: 15,      // Volume conviction
-            rsStrength: 12,          // Relative strength
-            atrExpansion: 12,        // Volatility expansion
-            compression: 10,         // Coiled spring
-            spreadQuality: 10,       // Execution quality
-            wickHealth: 8,           // No exhaustion
-            baseFormation: 8,        // Structure
-            vwapHold: 5,             // VWAP support
-            blockActivity: 5         // Institutional interest
+            moveQuality: 20,          // Early entry = high score
+            volumeStrength: 18,       // Volume conviction
+            rsStrength: 15,           // Relative strength
+            spreadQuality: 12,        // Execution quality
+            structureHealth: 12,      // Higher lows, no wicks
+            vwapAlignment: 10,        // VWAP support
+            remainingRoom: 8,         // Circuit headroom
+            momentumIntact: 5         // Trend continuation
         };
 
         // State
-        this.autoAdjustLevel = 0;    // 0 = strictest, 1,2 = progressively looser
         this.signalHistory = [];
-        this.rejectionLog = [];
 
-        console.log('[RUNNER_STOCK] Initializing V7 Elite Runner Stock Detection...');
-        console.log('[RUNNER_STOCK] Hard filters: 13 | Score weights: 10 factors');
-        console.log('[RUNNER_STOCK] Elite threshold: ' + this.config.eliteRunnerScore);
-        console.log('[RUNNER_STOCK] Initialized');
+        console.log('[RUNNER_STOCK_V7] Initializing Dynamic Circuit-Aware Elite Runner...');
+        console.log('[RUNNER_STOCK_V7] Zones: EARLY(0-2%) | STRONG(2-5%) | EXTENDED(5-8%) | LATE(8-9.5%)');
+        console.log('[RUNNER_STOCK_V7] Elite threshold: ' + this.config.eliteRunnerScore);
     }
 
     /**
-     * MAIN: Evaluate stock for runner probability
-     * @param {object} data - Stock data with candles, market context
-     * @returns {object} { passed, score, isElite, breakdown, rejections }
+     * MAIN: Evaluate stock for Elite Runner probability
      */
     evaluate(data) {
         const {
             symbol,
             token,
-            candles,
             currentPrice,
             openPrice,
             spread,
@@ -129,6 +113,7 @@ class RunnerProbabilityStockService {
             confidence,
             structuralSL,
             vwap,
+            candles,
             blockOrderScore
         } = data;
 
@@ -141,232 +126,235 @@ class RunnerProbabilityStockService {
             isElite: false,
             tag: null,
             confidenceBoost: 0,
+            zone: null,
+            movePercent: 0,
+            remainingRoom: 0,
+            circuitPercent: 0,
             breakdown: {},
-            rejections: [],
-            hardFiltersPassed: 0,
-            totalHardFilters: 13
+            blockers: []
         };
 
         // ═══════════════════════════════════════════════════════════════
-        // HARD FILTER CHECKS (ALL MUST PASS)
+        // STEP 1: Calculate move and remaining room
+        // ═══════════════════════════════════════════════════════════════
+        
+        const movePercent = this.calculateMoveFromOpen(currentPrice, openPrice);
+        const circuitPercent = this.getCircuitPercent(circuitLimits, openPrice);
+        const remainingRoom = circuitPercent - movePercent;
+        
+        result.movePercent = movePercent;
+        result.remainingRoom = remainingRoom;
+        result.circuitPercent = circuitPercent;
+        result.breakdown.move = { movePercent, circuitPercent, remainingRoom };
+
+        // ═══════════════════════════════════════════════════════════════
+        // STEP 2: ABSOLUTE BLOCK - Remaining room < 1%
+        // ═══════════════════════════════════════════════════════════════
+        
+        if (remainingRoom < this.config.absoluteMinRoom) {
+            result.blockers.push({
+                filter: 'REMAINING_ROOM',
+                reason: `Remaining room ${remainingRoom.toFixed(2)}% < 1% minimum`,
+                severity: 'HARD_BLOCK'
+            });
+            this.logResult(result);
+            return result;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // STEP 3: Determine zone based on move %
+        // ═══════════════════════════════════════════════════════════════
+        
+        const zone = this.determineZone(movePercent, circuitPercent);
+        result.zone = zone;
+        
+        if (!zone) {
+            result.blockers.push({
+                filter: 'ZONE_INVALID',
+                reason: `Move ${movePercent.toFixed(2)}% exceeds all zones`,
+                severity: 'HARD_BLOCK'
+            });
+            this.logResult(result);
+            return result;
+        }
+
+        const zoneReqs = this.zoneConfig[zone];
+        result.breakdown.zone = { name: zone, requirements: zoneReqs };
+
+        // ═══════════════════════════════════════════════════════════════
+        // STEP 4: Zone-specific validation
         // ═══════════════════════════════════════════════════════════════
 
-        // 1️⃣ MOVE FROM OPEN CHECK
-        const moveFromOpen = this.calculateMoveFromOpen(currentPrice, openPrice);
-        const moveCheck = this.checkMoveFromOpen(moveFromOpen);
-        result.breakdown.moveFromOpen = moveCheck;
-        if (!moveCheck.passed) {
-            result.rejections.push({
-                filter: 'MOVE_FROM_OPEN',
-                reason: `Move ${moveFromOpen.toFixed(2)}% > ${this.config.maxMoveFromOpen}% max`,
-                value: moveFromOpen,
-                threshold: this.config.maxMoveFromOpen,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
-        }
-
-        // 2️⃣ OPENING COMPRESSION CHECK
-        const compressionCheck = this.checkOpeningCompression(candles);
-        result.breakdown.compression = compressionCheck;
-        if (!compressionCheck.passed) {
-            result.rejections.push({
-                filter: 'OPENING_COMPRESSION',
-                reason: `Compression ${compressionCheck.value?.toFixed(2)}% > ${this.config.maxOpeningCompression}% max`,
-                value: compressionCheck.value,
-                threshold: this.config.maxOpeningCompression,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
-        }
-
-        // 3️⃣ VOLUME STRENGTH CHECK
-        const volumeCheck = this.checkVolumeStrength(candles);
-        result.breakdown.volumeStrength = volumeCheck;
+        // 4a: Volume check
+        const volumeCheck = this.checkVolume(candles, zoneReqs.minVolume);
+        result.breakdown.volume = volumeCheck;
         if (!volumeCheck.passed) {
-            result.rejections.push({
-                filter: 'VOLUME_STRENGTH',
-                reason: `Volume ${volumeCheck.multiple?.toFixed(2)}x < ${this.getActiveVolumeThreshold()}x min`,
-                value: volumeCheck.multiple,
-                threshold: this.getActiveVolumeThreshold(),
-                severity: 'HARD_BLOCK'
+            result.blockers.push({
+                filter: 'VOLUME',
+                reason: `Volume ${volumeCheck.multiple?.toFixed(2)}x < ${zoneReqs.minVolume}x (${zone} zone)`,
+                severity: 'ZONE_BLOCK'
             });
-        } else {
-            result.hardFiltersPassed++;
         }
 
-        // 4️⃣ VOLUME STRUCTURE PROXY (replaces delivery)
-        const volumeStructureCheck = this.checkVolumeStructure(candles, vwap, blockOrderScore);
-        result.breakdown.volumeStructure = volumeStructureCheck;
-        if (!volumeStructureCheck.passed) {
-            result.rejections.push({
-                filter: 'VOLUME_STRUCTURE',
-                reason: volumeStructureCheck.reason,
-                value: volumeStructureCheck.score,
-                threshold: 50,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
-        }
-
-        // 5️⃣ RELATIVE STRENGTH CHECK
-        const rsCheck = this.checkRelativeStrength(currentPrice, openPrice, niftyChange);
-        result.breakdown.rsStrength = rsCheck;
+        // 4b: RS check
+        const rsCheck = this.checkRS(currentPrice, openPrice, niftyChange, zoneReqs.minRS);
+        result.breakdown.rs = rsCheck;
         if (!rsCheck.passed) {
-            result.rejections.push({
-                filter: 'RELATIVE_STRENGTH',
-                reason: `RS ${rsCheck.rsValue?.toFixed(2)}% < ${this.config.minRSvsNifty}% min`,
-                value: rsCheck.rsValue,
-                threshold: this.config.minRSvsNifty,
-                severity: 'HARD_BLOCK'
+            result.blockers.push({
+                filter: 'RS',
+                reason: `RS ${rsCheck.rsValue?.toFixed(2)}% < ${zoneReqs.minRS}% (${zone} zone)`,
+                severity: 'ZONE_BLOCK'
             });
-        } else {
-            result.hardFiltersPassed++;
         }
 
-        // 6️⃣ ATR EXPANSION CHECK
-        const atrCheck = this.checkATRExpansion(candles);
-        result.breakdown.atrExpansion = atrCheck;
-        if (!atrCheck.passed) {
-            result.rejections.push({
-                filter: 'ATR_EXPANSION',
-                reason: `ATR slope ${atrCheck.slope?.toFixed(3)} not rising`,
-                value: atrCheck.slope,
-                threshold: this.config.minATRSlopeRise,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
-        }
-
-        // 7️⃣ SPREAD CHECK (NEVER LOOSEN)
-        const spreadCheck = this.checkSpread(spread);
-        result.breakdown.spreadQuality = spreadCheck;
+        // 4c: Spread check
+        const spreadCheck = this.checkSpread(spread, zoneReqs.maxSpread);
+        result.breakdown.spread = spreadCheck;
         if (!spreadCheck.passed) {
-            result.rejections.push({
+            result.blockers.push({
                 filter: 'SPREAD',
-                reason: `Spread ${spread?.toFixed(2)}% > ${this.config.maxSpread}% max (NEVER LOOSEN)`,
-                value: spread,
-                threshold: this.config.maxSpread,
-                severity: 'HARD_BLOCK_PERMANENT'
+                reason: `Spread ${spread?.toFixed(2)}% > ${zoneReqs.maxSpread}% (${zone} zone)`,
+                severity: 'ZONE_BLOCK'
             });
-        } else {
-            result.hardFiltersPassed++;
         }
 
-        // 8️⃣ EXHAUSTION WICK CHECK
-        const wickCheck = this.checkExhaustionWick(candles);
-        result.breakdown.wickHealth = wickCheck;
-        if (!wickCheck.passed) {
-            result.rejections.push({
-                filter: 'EXHAUSTION_WICK',
-                reason: `Wick ${wickCheck.wickPercent?.toFixed(1)}% > ${this.config.maxExhaustionWick}% max`,
-                value: wickCheck.wickPercent,
-                threshold: this.config.maxExhaustionWick,
-                severity: 'HARD_BLOCK'
+        // 4d: Remaining room check (zone-specific)
+        const roomCheck = this.checkRemainingRoom(remainingRoom, zoneReqs.minRemainingRoom);
+        result.breakdown.room = roomCheck;
+        if (!roomCheck.passed) {
+            result.blockers.push({
+                filter: 'ROOM',
+                reason: `Room ${remainingRoom.toFixed(2)}% < ${zoneReqs.minRemainingRoom}% (${zone} zone)`,
+                severity: 'ZONE_BLOCK'
             });
-        } else {
-            result.hardFiltersPassed++;
         }
 
-        // 9️⃣ CIRCUIT PROXIMITY CHECK
-        const circuitCheck = this.checkCircuitProximity(currentPrice, circuitLimits);
-        result.breakdown.circuitSafety = circuitCheck;
-        if (!circuitCheck.passed) {
-            result.rejections.push({
-                filter: 'CIRCUIT_PROXIMITY',
-                reason: `Within ${circuitCheck.proximityPercent?.toFixed(2)}% of circuit limit`,
-                value: circuitCheck.proximityPercent,
-                threshold: this.config.circuitProximity,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
+        // 4e: VWAP check (if required)
+        if (zoneReqs.requireVWAP) {
+            const vwapCheck = this.checkVWAPHold(currentPrice, vwap);
+            result.breakdown.vwap = vwapCheck;
+            if (!vwapCheck.passed) {
+                result.blockers.push({
+                    filter: 'VWAP',
+                    reason: `Price below VWAP (${zone} zone requires VWAP hold)`,
+                    severity: 'ZONE_BLOCK'
+                });
+            }
         }
 
-        // 🔟 GAP + BASE FORMATION CHECK
-        const gapBaseCheck = this.checkGapAndBase(candles, openPrice);
-        result.breakdown.baseFormation = gapBaseCheck;
-        if (!gapBaseCheck.passed) {
-            result.rejections.push({
-                filter: 'GAP_BASE',
-                reason: gapBaseCheck.reason,
-                value: gapBaseCheck.gapPercent,
-                threshold: this.config.maxGapWithoutBase,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
+        // 4f: Exhaustion wick check (STRONG zone)
+        if (zoneReqs.noExhaustionWick) {
+            const wickCheck = this.checkNoExhaustionWick(candles);
+            result.breakdown.wick = wickCheck;
+            if (!wickCheck.passed) {
+                result.blockers.push({
+                    filter: 'EXHAUSTION_WICK',
+                    reason: `Exhaustion wick detected ${wickCheck.wickPercent?.toFixed(1)}%`,
+                    severity: 'ZONE_BLOCK'
+                });
+            }
         }
 
-        // 1️⃣1️⃣ STRUCTURAL SL CHECK (NEVER LOOSEN)
-        const slCheck = this.checkStructuralSL(structuralSL);
-        result.breakdown.structuralSL = slCheck;
-        if (!slCheck.passed) {
-            result.rejections.push({
-                filter: 'STRUCTURAL_SL',
-                reason: `SL ${structuralSL?.toFixed(2)}% > ${this.config.maxStructuralSL}% max (NEVER LOOSEN)`,
-                value: structuralSL,
-                threshold: this.config.maxStructuralSL,
-                severity: 'HARD_BLOCK_PERMANENT'
-            });
-        } else {
-            result.hardFiltersPassed++;
+        // 4g: Higher low check (EXTENDED zone)
+        if (zoneReqs.requireHigherLow) {
+            const hlCheck = this.checkHigherLow(candles);
+            result.breakdown.higherLow = hlCheck;
+            if (!hlCheck.passed) {
+                result.blockers.push({
+                    filter: 'HIGHER_LOW',
+                    reason: 'No higher low structure',
+                    severity: 'ZONE_BLOCK'
+                });
+            }
         }
 
-        // 1️⃣2️⃣ CONFIDENCE CHECK
+        // 4h: ATR expanding check (EXTENDED zone)
+        if (zoneReqs.requireATRExpanding) {
+            const atrCheck = this.checkATRExpanding(candles);
+            result.breakdown.atr = atrCheck;
+            if (!atrCheck.passed) {
+                result.blockers.push({
+                    filter: 'ATR',
+                    reason: 'ATR not expanding',
+                    severity: 'ZONE_BLOCK'
+                });
+            }
+        }
+
+        // 4i: Structural SL check (EXTENDED and LATE zones)
+        if (zoneReqs.maxSL) {
+            const slCheck = this.checkSL(structuralSL, zoneReqs.maxSL);
+            result.breakdown.sl = slCheck;
+            if (!slCheck.passed) {
+                result.blockers.push({
+                    filter: 'STRUCTURAL_SL',
+                    reason: `SL ${structuralSL?.toFixed(2)}% > ${zoneReqs.maxSL}% (${zone} zone)`,
+                    severity: 'ZONE_BLOCK'
+                });
+            }
+        }
+
+        // 4j: LATE zone special checks
+        if (zone === 'LATE') {
+            // Must be 10% circuit stock
+            if (zoneReqs.onlyFor10PercentCircuit && circuitPercent > 12) {
+                result.blockers.push({
+                    filter: 'CIRCUIT_TYPE',
+                    reason: `LATE zone only for 10% circuit stocks (current: ${circuitPercent.toFixed(1)}%)`,
+                    severity: 'ZONE_BLOCK'
+                });
+            }
+
+            // No rejection wick
+            if (zoneReqs.noRejectionWick) {
+                const rejWickCheck = this.checkNoRejectionWick(candles);
+                result.breakdown.rejectionWick = rejWickCheck;
+                if (!rejWickCheck.passed) {
+                    result.blockers.push({
+                        filter: 'REJECTION_WICK',
+                        reason: 'Rejection wick detected in LATE zone',
+                        severity: 'ZONE_BLOCK'
+                    });
+                }
+            }
+
+            // Momentum intact
+            if (zoneReqs.requireMomentumIntact) {
+                const momCheck = this.checkMomentumIntact(candles);
+                result.breakdown.momentum = momCheck;
+                if (!momCheck.passed) {
+                    result.blockers.push({
+                        filter: 'MOMENTUM',
+                        reason: 'Momentum fading in LATE zone',
+                        severity: 'ZONE_BLOCK'
+                    });
+                }
+            }
+        }
+
+        // 4k: Confidence check
         const confCheck = this.checkConfidence(confidence);
         result.breakdown.confidence = confCheck;
         if (!confCheck.passed) {
-            result.rejections.push({
+            result.blockers.push({
                 filter: 'CONFIDENCE',
-                reason: `Confidence ${confidence} < ${this.config.minConfidence} min`,
-                value: confidence,
-                threshold: this.config.minConfidence,
+                reason: `Confidence ${confidence} < ${this.config.minConfidence}`,
                 severity: 'HARD_BLOCK'
             });
-        } else {
-            result.hardFiltersPassed++;
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // RUNNER SCORE CALCULATION
+        // STEP 5: Calculate runner score
         // ═══════════════════════════════════════════════════════════════
 
-        result.score = this.calculateRunnerScore(result.breakdown, data);
-
-        // 1️⃣3️⃣ RUNNER SCORE CHECK
-        const activeScoreThreshold = this.getActiveRunnerScoreThreshold();
-        const scoreCheck = {
-            passed: result.score >= activeScoreThreshold,
-            score: result.score,
-            threshold: activeScoreThreshold,
-            adjustLevel: this.autoAdjustLevel
-        };
-        result.breakdown.runnerScore = scoreCheck;
-        
-        if (!scoreCheck.passed) {
-            result.rejections.push({
-                filter: 'RUNNER_SCORE',
-                reason: `RunnerScore ${result.score} < ${activeScoreThreshold} min`,
-                value: result.score,
-                threshold: activeScoreThreshold,
-                severity: 'HARD_BLOCK'
-            });
-        } else {
-            result.hardFiltersPassed++;
-        }
+        result.score = this.calculateScore(result.breakdown, data, zone);
 
         // ═══════════════════════════════════════════════════════════════
-        // FINAL DECISION
+        // STEP 6: Final decision
         // ═══════════════════════════════════════════════════════════════
 
-        result.passed = result.hardFiltersPassed === result.totalHardFilters;
+        result.passed = result.blockers.length === 0;
 
-        // Check for ELITE status
         if (result.passed && result.score >= this.config.eliteRunnerScore) {
             result.isElite = true;
             result.tag = 'ELITE_RUNNER';
@@ -375,426 +363,301 @@ class RunnerProbabilityStockService {
             result.tag = 'RUNNER';
         }
 
-        // Log result
         this.logResult(result);
-
         return result;
     }
 
     // ═══════════════════════════════════════════════════════════════════════
-    // INDIVIDUAL FILTER IMPLEMENTATIONS
+    // HELPER METHODS
     // ═══════════════════════════════════════════════════════════════════════
 
     calculateMoveFromOpen(currentPrice, openPrice) {
         if (!openPrice || openPrice === 0) return 0;
-        return Math.abs((currentPrice - openPrice) / openPrice) * 100;
+        return ((currentPrice - openPrice) / openPrice) * 100;
     }
 
-    checkMoveFromOpen(movePercent) {
-        return {
-            passed: movePercent <= this.config.maxMoveFromOpen,
-            value: movePercent,
-            threshold: this.config.maxMoveFromOpen,
-            score: Math.max(0, 100 - (movePercent / this.config.maxMoveFromOpen) * 50)
-        };
+    getCircuitPercent(circuitLimits, openPrice) {
+        if (!circuitLimits || !circuitLimits.upper || !openPrice) return 20; // Default
+        return ((circuitLimits.upper - openPrice) / openPrice) * 100;
     }
 
-    checkOpeningCompression(candles) {
-        if (!candles || candles.length < 3) {
-            return { passed: false, value: null, reason: 'Insufficient candles' };
+    determineZone(movePercent, circuitPercent) {
+        // Determine which zone the current move falls into
+        if (movePercent >= this.zones.EARLY.min && movePercent < this.zones.EARLY.max) {
+            return 'EARLY';
+        }
+        if (movePercent >= this.zones.STRONG.min && movePercent < this.zones.STRONG.max) {
+            return 'STRONG';
+        }
+        if (movePercent >= this.zones.EXTENDED.min && movePercent < this.zones.EXTENDED.max) {
+            return 'EXTENDED';
+        }
+        if (movePercent >= this.zones.LATE.min && movePercent < this.zones.LATE.max) {
+            // LATE zone only for 10% circuit stocks
+            if (circuitPercent <= 12) {
+                return 'LATE';
+            }
+            return null; // Beyond EXTENDED for non-10% circuit stocks
+        }
+        return null; // Beyond all zones
+    }
+
+    checkVolume(candles, minMultiple) {
+        if (!candles || candles.length < 10) {
+            return { passed: false, multiple: 0, reason: 'Insufficient candles' };
         }
 
-        // First 15 minutes (3 x 5-min candles)
-        const openingCandles = candles.slice(0, 3);
-        const highestHigh = Math.max(...openingCandles.map(c => c.high));
-        const lowestLow = Math.min(...openingCandles.map(c => c.low));
-        const openPrice = openingCandles[0].open;
-        
-        const compressionPercent = ((highestHigh - lowestLow) / openPrice) * 100;
+        const recentVol = candles.slice(-3).reduce((a, c) => a + c.volume, 0) / 3;
+        const avgVol = candles.slice(0, -3).reduce((a, c) => a + c.volume, 0) / (candles.length - 3);
+        const multiple = recentVol / (avgVol || 1);
 
         return {
-            passed: compressionPercent <= this.config.maxOpeningCompression,
-            value: compressionPercent,
-            threshold: this.config.maxOpeningCompression,
-            score: compressionPercent <= this.config.maxOpeningCompression 
-                ? 100 - (compressionPercent / this.config.maxOpeningCompression) * 30
-                : 0
-        };
-    }
-
-    checkVolumeStrength(candles) {
-        if (!candles || candles.length < this.config.volumeLookback) {
-            return { passed: false, multiple: null, reason: 'Insufficient candles' };
-        }
-
-        // Get recent 3 candles average (current session volume)
-        const recentVolumes = candles.slice(-3).map(c => c.volume);
-        const currentSessionVolume = recentVolumes.reduce((a, b) => a + b, 0) / 3;
-        
-        // Get historical average (excluding last 3)
-        const historicalCandles = candles.slice(0, -3);
-        const avgVolume = historicalCandles.reduce((sum, c) => sum + c.volume, 0) / historicalCandles.length;
-        
-        const multiple = currentSessionVolume / (avgVolume || 1);
-        const threshold = this.getActiveVolumeThreshold();
-
-        return {
-            passed: multiple >= threshold,
+            passed: multiple >= minMultiple,
             multiple,
-            avgVolume,
-            currentSessionVolume,
-            threshold,
-            score: Math.min(100, (multiple / threshold) * 60)
+            recentVol,
+            avgVol,
+            threshold: minMultiple,
+            score: Math.min(100, (multiple / minMultiple) * 60)
         };
     }
 
-    checkVolumeStructure(candles, vwap, blockOrderScore) {
-        // Volume structure proxy (replaces delivery data)
-        let score = 0;
-        const reasons = [];
-
-        // 1. Volume clustering in last 15 min (3 candles)
-        if (candles && candles.length >= 6) {
-            const recent3Vol = candles.slice(-3).reduce((sum, c) => sum + c.volume, 0);
-            const prev3Vol = candles.slice(-6, -3).reduce((sum, c) => sum + c.volume, 0);
-            const clustering = recent3Vol / (prev3Vol || 1);
-            
-            if (clustering >= this.config.minVolumeCluster) {
-                score += 30;
-                reasons.push(`Volume clustering ${clustering.toFixed(2)}x`);
-            }
-        }
-
-        // 2. VWAP hold strength
-        if (vwap && candles && candles.length > 0) {
-            const currentPrice = candles[candles.length - 1].close;
-            const vwapDistance = ((currentPrice - vwap) / vwap) * 100;
-            
-            if (vwapDistance >= -0.3 && vwapDistance <= 2) {
-                score += 35;
-                reasons.push(`VWAP hold: ${vwapDistance.toFixed(2)}%`);
-            }
-        }
-
-        // 3. Block order activity
-        if (blockOrderScore && blockOrderScore > 0) {
-            score += Math.min(35, blockOrderScore * 0.35);
-            reasons.push(`Block activity: ${blockOrderScore}`);
-        }
-
-        return {
-            passed: score >= 50,
-            score,
-            reasons,
-            reason: score < 50 ? 'Weak volume structure' : 'Strong volume structure'
-        };
-    }
-
-    checkRelativeStrength(currentPrice, openPrice, niftyChange) {
+    checkRS(currentPrice, openPrice, niftyChange, minRS) {
         const stockChange = ((currentPrice - openPrice) / openPrice) * 100;
         const rsValue = stockChange - (niftyChange || 0);
 
         return {
-            passed: rsValue >= this.config.minRSvsNifty,
+            passed: rsValue >= minRS,
             rsValue,
             stockChange,
             niftyChange,
-            threshold: this.config.minRSvsNifty,
-            score: Math.min(100, Math.max(0, (rsValue / this.config.minRSvsNifty) * 50))
+            threshold: minRS,
+            score: Math.min(100, (rsValue / minRS) * 50)
         };
     }
 
-    checkATRExpansion(candles) {
-        if (!candles || candles.length < this.config.atrLookback + 5) {
-            return { passed: false, slope: null, reason: 'Insufficient candles' };
-        }
-
-        // Calculate ATR for recent and previous periods
-        const recentATR = this.calculateATR(candles.slice(-this.config.atrLookback));
-        const prevATR = this.calculateATR(candles.slice(-(this.config.atrLookback + 5), -5));
-
-        // Handle zero/near-zero ATR (compression scenario)
-        if (prevATR < 0.0001) {
-            // In compression, any ATR is expansion
-            return {
-                passed: recentATR > 0,
-                slope: recentATR > 0 ? 1 : 0,
-                recentATR,
-                prevATR,
-                threshold: this.config.minATRSlopeRise,
-                score: recentATR > 0 ? 80 : 0,
-                note: 'Compression base - any expansion is valid'
-            };
-        }
-
-        const slope = (recentATR - prevATR) / prevATR;
-
+    checkSpread(spread, maxSpread) {
+        if (spread === undefined) return { passed: false, value: 0 };
         return {
-            passed: slope >= this.config.minATRSlopeRise,
-            slope,
+            passed: spread <= maxSpread,
+            value: spread,
+            threshold: maxSpread,
+            score: spread <= maxSpread ? 100 - (spread / maxSpread) * 50 : 0
+        };
+    }
+
+    checkRemainingRoom(room, minRoom) {
+        return {
+            passed: room >= minRoom,
+            value: room,
+            threshold: minRoom,
+            score: Math.min(100, (room / minRoom) * 40)
+        };
+    }
+
+    checkVWAPHold(currentPrice, vwap) {
+        if (!vwap) return { passed: true, note: 'No VWAP data' };
+        const distance = ((currentPrice - vwap) / vwap) * 100;
+        return {
+            passed: distance >= -0.5, // Within 0.5% below VWAP is OK
+            distance,
+            score: distance >= 0 ? 100 : Math.max(0, 100 + distance * 50)
+        };
+    }
+
+    checkNoExhaustionWick(candles) {
+        if (!candles || candles.length < 1) return { passed: true };
+        
+        const lastCandle = candles[candles.length - 1];
+        const body = Math.abs(lastCandle.close - lastCandle.open);
+        const range = lastCandle.high - lastCandle.low;
+        if (range === 0) return { passed: true, wickPercent: 0 };
+        
+        const upperWick = lastCandle.high - Math.max(lastCandle.close, lastCandle.open);
+        const wickPercent = (upperWick / range) * 100;
+        
+        return {
+            passed: wickPercent < 40,
+            wickPercent,
+            score: wickPercent < 40 ? 100 - wickPercent : 0
+        };
+    }
+
+    checkHigherLow(candles) {
+        if (!candles || candles.length < 6) return { passed: false };
+        
+        // Look for higher lows in last 6 candles
+        const lows = candles.slice(-6).map(c => c.low);
+        let higherLowCount = 0;
+        
+        for (let i = 1; i < lows.length; i++) {
+            if (lows[i] > lows[i-1]) higherLowCount++;
+        }
+        
+        return {
+            passed: higherLowCount >= 3,
+            higherLowCount,
+            score: (higherLowCount / 5) * 100
+        };
+    }
+
+    checkATRExpanding(candles) {
+        if (!candles || candles.length < 20) return { passed: false };
+        
+        const recentATR = this.calculateATR(candles.slice(-10));
+        const prevATR = this.calculateATR(candles.slice(-20, -10));
+        
+        if (prevATR === 0) return { passed: recentATR > 0, ratio: 999 };
+        
+        const ratio = recentATR / prevATR;
+        return {
+            passed: ratio > 1.05,
+            ratio,
             recentATR,
             prevATR,
-            threshold: this.config.minATRSlopeRise,
-            score: slope >= this.config.minATRSlopeRise ? Math.min(100, slope * 200) : 0
+            score: ratio > 1.05 ? Math.min(100, ratio * 50) : 0
         };
     }
 
     calculateATR(candles) {
         if (!candles || candles.length < 2) return 0;
-        
         let trSum = 0;
         for (let i = 1; i < candles.length; i++) {
-            const high = candles[i].high;
-            const low = candles[i].low;
-            const prevClose = candles[i - 1].close;
-            const tr = Math.max(high - low, Math.abs(high - prevClose), Math.abs(low - prevClose));
+            const tr = Math.max(
+                candles[i].high - candles[i].low,
+                Math.abs(candles[i].high - candles[i-1].close),
+                Math.abs(candles[i].low - candles[i-1].close)
+            );
             trSum += tr;
         }
         return trSum / (candles.length - 1);
     }
 
-    checkSpread(spread) {
-        if (spread === undefined || spread === null) {
-            return { passed: false, value: null, reason: 'No spread data' };
-        }
-
+    checkSL(sl, maxSL) {
+        if (sl === undefined) return { passed: false };
         return {
-            passed: spread <= this.config.maxSpread,
-            value: spread,
-            threshold: this.config.maxSpread,
-            score: spread <= this.config.maxSpread ? 100 - (spread / this.config.maxSpread) * 50 : 0
+            passed: sl <= maxSL,
+            value: sl,
+            threshold: maxSL,
+            score: sl <= maxSL ? 100 - (sl / maxSL) * 30 : 0
         };
     }
 
-    checkExhaustionWick(candles) {
-        if (!candles || candles.length < 1) {
-            return { passed: true, wickPercent: 0 };
-        }
-
-        const lastCandle = candles[candles.length - 1];
-        const body = Math.abs(lastCandle.close - lastCandle.open);
-        const totalRange = lastCandle.high - lastCandle.low;
+    checkNoRejectionWick(candles) {
+        if (!candles || candles.length < 3) return { passed: true };
         
-        if (totalRange === 0) return { passed: true, wickPercent: 0 };
-
-        const upperWick = lastCandle.high - Math.max(lastCandle.close, lastCandle.open);
-        const lowerWick = Math.min(lastCandle.close, lastCandle.open) - lastCandle.low;
-        const maxWick = Math.max(upperWick, lowerWick);
-        const wickPercent = (maxWick / totalRange) * 100;
-
-        return {
-            passed: wickPercent <= this.config.maxExhaustionWick,
-            wickPercent,
-            upperWick,
-            lowerWick,
-            threshold: this.config.maxExhaustionWick,
-            score: wickPercent <= this.config.maxExhaustionWick ? 100 - wickPercent : 0
-        };
+        // Check last 3 candles for rejection wicks
+        for (let i = candles.length - 3; i < candles.length; i++) {
+            const c = candles[i];
+            const body = Math.abs(c.close - c.open);
+            const range = c.high - c.low;
+            if (range === 0) continue;
+            
+            const upperWick = c.high - Math.max(c.close, c.open);
+            if (upperWick / range > 0.5) {
+                return { passed: false, candleIndex: i, wickRatio: upperWick / range };
+            }
+        }
+        return { passed: true };
     }
 
-    checkCircuitProximity(currentPrice, circuitLimits) {
-        if (!circuitLimits) {
-            return { passed: true, proximityPercent: 100, reason: 'No circuit data' };
+    checkMomentumIntact(candles) {
+        if (!candles || candles.length < 5) return { passed: false };
+        
+        // Check if closes are trending up
+        const closes = candles.slice(-5).map(c => c.close);
+        let upCount = 0;
+        for (let i = 1; i < closes.length; i++) {
+            if (closes[i] > closes[i-1]) upCount++;
         }
-
-        const { upper, lower } = circuitLimits;
-        const upperProximity = upper ? ((upper - currentPrice) / currentPrice) * 100 : 100;
-        const lowerProximity = lower ? ((currentPrice - lower) / currentPrice) * 100 : 100;
-        const proximityPercent = Math.min(upperProximity, lowerProximity);
-
-        return {
-            passed: proximityPercent >= this.config.circuitProximity,
-            proximityPercent,
-            upperProximity,
-            lowerProximity,
-            threshold: this.config.circuitProximity,
-            score: proximityPercent >= this.config.circuitProximity ? 100 : 0
-        };
-    }
-
-    checkGapAndBase(candles, todayOpen) {
-        if (!candles || candles.length < 10) {
-            return { passed: true, gapPercent: 0, baseFormed: false };
-        }
-
-        // Find previous day close (assume last candle before today)
-        const prevClose = candles[0].open; // Approximation
-        const gapPercent = ((todayOpen - prevClose) / prevClose) * 100;
-
-        // If gap < threshold, pass
-        if (Math.abs(gapPercent) < this.config.maxGapWithoutBase) {
-            return {
-                passed: true,
-                gapPercent,
-                baseFormed: false,
-                reason: 'Gap within limit'
-            };
-        }
-
-        // Check for base formation
-        const baseFormed = this.detectBaseFormation(candles);
         
         return {
-            passed: baseFormed,
-            gapPercent,
-            baseFormed,
-            reason: baseFormed ? 'Base formed after gap' : `Gap ${gapPercent.toFixed(2)}% without base formation`
-        };
-    }
-
-    detectBaseFormation(candles) {
-        if (!candles || candles.length < this.config.baseMinCandles) {
-            return false;
-        }
-
-        // Look at recent candles for compression
-        const recentCandles = candles.slice(-this.config.baseMaxCandles);
-        
-        // Calculate range
-        const highestHigh = Math.max(...recentCandles.map(c => c.high));
-        const lowestLow = Math.min(...recentCandles.map(c => c.low));
-        const range = highestHigh - lowestLow;
-        
-        // Calculate ATR for comparison
-        const atr = this.calculateATR(recentCandles);
-        
-        // Check if range is compressed (< 1.2 ATR)
-        const rangeToATR = range / atr;
-        
-        // Check volume dry-up then expansion
-        const volumes = recentCandles.map(c => c.volume);
-        const avgVol = volumes.reduce((a, b) => a + b, 0) / volumes.length;
-        const lastVol = volumes[volumes.length - 1];
-        const volumeExpansion = lastVol > avgVol * 1.3;
-
-        return rangeToATR <= this.config.baseMaxRangeATR && volumeExpansion;
-    }
-
-    checkStructuralSL(structuralSL) {
-        if (structuralSL === undefined || structuralSL === null) {
-            return { passed: false, value: null, reason: 'No SL data' };
-        }
-
-        return {
-            passed: structuralSL <= this.config.maxStructuralSL,
-            value: structuralSL,
-            threshold: this.config.maxStructuralSL,
-            score: structuralSL <= this.config.maxStructuralSL ? 100 - (structuralSL / this.config.maxStructuralSL) * 30 : 0
+            passed: upCount >= 3,
+            upCount,
+            score: (upCount / 4) * 100
         };
     }
 
     checkConfidence(confidence) {
-        if (confidence === undefined || confidence === null) {
-            return { passed: false, value: null, reason: 'No confidence data' };
-        }
-
         return {
             passed: confidence >= this.config.minConfidence,
             value: confidence,
-            threshold: this.config.minConfidence,
-            score: confidence >= this.config.minConfidence ? confidence : 0
+            threshold: this.config.minConfidence
         };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════
-    // RUNNER SCORE CALCULATION
-    // ═══════════════════════════════════════════════════════════════════════
+    calculateScore(breakdown, data, zone) {
+        let score = 0;
 
-    calculateRunnerScore(breakdown, data) {
-        let totalScore = 0;
+        // Move quality (early = better)
+        const movePercent = breakdown.move?.movePercent || 0;
+        if (zone === 'EARLY') score += this.scoreWeights.moveQuality;
+        else if (zone === 'STRONG') score += this.scoreWeights.moveQuality * 0.8;
+        else if (zone === 'EXTENDED') score += this.scoreWeights.moveQuality * 0.5;
+        else if (zone === 'LATE') score += this.scoreWeights.moveQuality * 0.3;
 
-        // Move from open (15 pts) - lower is better
-        if (breakdown.moveFromOpen?.score) {
-            totalScore += (breakdown.moveFromOpen.score / 100) * this.scoreWeights.moveFromOpen;
+        // Volume
+        if (breakdown.volume?.score) {
+            score += (breakdown.volume.score / 100) * this.scoreWeights.volumeStrength;
         }
 
-        // Volume strength (15 pts)
-        if (breakdown.volumeStrength?.score) {
-            totalScore += (breakdown.volumeStrength.score / 100) * this.scoreWeights.volumeStrength;
+        // RS
+        if (breakdown.rs?.score) {
+            score += (breakdown.rs.score / 100) * this.scoreWeights.rsStrength;
         }
 
-        // RS strength (12 pts)
-        if (breakdown.rsStrength?.score) {
-            totalScore += (breakdown.rsStrength.score / 100) * this.scoreWeights.rsStrength;
+        // Spread
+        if (breakdown.spread?.score) {
+            score += (breakdown.spread.score / 100) * this.scoreWeights.spreadQuality;
         }
 
-        // ATR expansion (12 pts)
-        if (breakdown.atrExpansion?.score) {
-            totalScore += (breakdown.atrExpansion.score / 100) * this.scoreWeights.atrExpansion;
+        // Structure (higher low + no wicks)
+        let structScore = 0;
+        if (breakdown.higherLow?.score) structScore += breakdown.higherLow.score * 0.5;
+        if (breakdown.wick?.score) structScore += breakdown.wick.score * 0.5;
+        else structScore += 50; // Default if not checked
+        score += (structScore / 100) * this.scoreWeights.structureHealth;
+
+        // VWAP
+        if (breakdown.vwap?.score) {
+            score += (breakdown.vwap.score / 100) * this.scoreWeights.vwapAlignment;
+        } else {
+            score += this.scoreWeights.vwapAlignment * 0.5; // Default
         }
 
-        // Compression (10 pts)
-        if (breakdown.compression?.score) {
-            totalScore += (breakdown.compression.score / 100) * this.scoreWeights.compression;
+        // Remaining room
+        if (breakdown.room?.score) {
+            score += (breakdown.room.score / 100) * this.scoreWeights.remainingRoom;
         }
 
-        // Spread quality (10 pts)
-        if (breakdown.spreadQuality?.score) {
-            totalScore += (breakdown.spreadQuality.score / 100) * this.scoreWeights.spreadQuality;
+        // Momentum
+        if (breakdown.momentum?.score) {
+            score += (breakdown.momentum.score / 100) * this.scoreWeights.momentumIntact;
+        } else {
+            score += this.scoreWeights.momentumIntact * 0.5;
         }
 
-        // Wick health (8 pts)
-        if (breakdown.wickHealth?.score) {
-            totalScore += (breakdown.wickHealth.score / 100) * this.scoreWeights.wickHealth;
-        }
-
-        // Base formation (8 pts)
-        if (breakdown.baseFormation?.baseFormed) {
-            totalScore += this.scoreWeights.baseFormation;
-        }
-
-        // VWAP hold (5 pts) - from volume structure
-        if (breakdown.volumeStructure?.score >= 50) {
-            totalScore += this.scoreWeights.vwapHold;
-        }
-
-        // Block activity (5 pts)
-        if (data.blockOrderScore && data.blockOrderScore > 50) {
-            totalScore += this.scoreWeights.blockActivity;
-        }
-
-        return Math.round(totalScore);
+        return Math.round(score);
     }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // AUTO-ADJUST LOGIC
-    // ═══════════════════════════════════════════════════════════════════════
-
-    getActiveRunnerScoreThreshold() {
-        const levels = this.config.autoAdjustLevels.runnerScore;
-        return levels[Math.min(this.autoAdjustLevel, levels.length - 1)];
-    }
-
-    getActiveVolumeThreshold() {
-        const levels = this.config.autoAdjustLevels.volumeMultiple;
-        return levels[Math.min(this.autoAdjustLevel, levels.length - 1)];
-    }
-
-    adjustThresholds(direction = 'loosen') {
-        if (direction === 'loosen' && this.autoAdjustLevel < 2) {
-            this.autoAdjustLevel++;
-            console.log(`[RUNNER_STOCK] ⚙️ Auto-adjusted to level ${this.autoAdjustLevel}`);
-            console.log(`[RUNNER_STOCK] New thresholds: RunnerScore=${this.getActiveRunnerScoreThreshold()}, Volume=${this.getActiveVolumeThreshold()}x`);
-        } else if (direction === 'tighten' && this.autoAdjustLevel > 0) {
-            this.autoAdjustLevel--;
-            console.log(`[RUNNER_STOCK] ⚙️ Tightened to level ${this.autoAdjustLevel}`);
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // LOGGING
-    // ═══════════════════════════════════════════════════════════════════════
 
     logResult(result) {
+        const zoneEmoji = {
+            'EARLY': '🟢',
+            'STRONG': '🟢',
+            'EXTENDED': '🟡',
+            'LATE': '🟠'
+        };
+
         const status = result.passed 
             ? (result.isElite ? '🌟 ELITE_RUNNER' : '✅ RUNNER')
-            : '🚫 REJECTED';
+            : '🚫 BLOCKED';
 
-        console.log(`[RUNNER_STOCK] ${status} | ${result.symbol} | Score: ${result.score} | Filters: ${result.hardFiltersPassed}/${result.totalHardFilters}`);
+        const zoneTag = result.zone ? `${zoneEmoji[result.zone] || ''} ${result.zone}` : 'NO_ZONE';
+
+        console.log(`[RUNNER_STOCK] ${status} | ${result.symbol} | ${zoneTag} | Move: ${result.movePercent.toFixed(2)}% | Room: ${result.remainingRoom.toFixed(2)}% | Score: ${result.score}`);
         
-        if (result.rejections.length > 0) {
-            result.rejections.forEach(r => {
-                console.log(`[RUNNER_STOCK]   └─ ${r.filter}: ${r.reason}`);
+        if (result.blockers.length > 0) {
+            result.blockers.forEach(b => {
+                console.log(`[RUNNER_STOCK]   └─ ${b.filter}: ${b.reason}`);
             });
         }
 
@@ -802,72 +665,16 @@ class RunnerProbabilityStockService {
             console.log(`[RUNNER_STOCK]   └─ 🌟 ELITE BOOST: +${result.confidenceBoost} confidence`);
         }
 
-        // Store for history
         this.signalHistory.push({
             symbol: result.symbol,
             timestamp: result.timestamp,
             passed: result.passed,
+            zone: result.zone,
             score: result.score,
             isElite: result.isElite
         });
 
-        // Keep only last 100
-        if (this.signalHistory.length > 100) {
-            this.signalHistory.shift();
-        }
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════
-    // SIMULATION / TESTING
-    // ═══════════════════════════════════════════════════════════════════════
-
-    /**
-     * Run simulation with test data
-     */
-    runSimulation(testCases) {
-        console.log('\n═══════════════════════════════════════════════════════════════');
-        console.log('       RUNNER PROBABILITY STOCK - V7 SIMULATION                 ');
-        console.log('═══════════════════════════════════════════════════════════════\n');
-
-        const results = {
-            total: testCases.length,
-            passed: 0,
-            elite: 0,
-            rejected: 0,
-            rejectionReasons: {}
-        };
-
-        testCases.forEach((testCase, i) => {
-            console.log(`\n--- Test ${i + 1}: ${testCase.symbol} ---`);
-            const result = this.evaluate(testCase);
-            
-            if (result.passed) {
-                results.passed++;
-                if (result.isElite) results.elite++;
-            } else {
-                results.rejected++;
-                result.rejections.forEach(r => {
-                    results.rejectionReasons[r.filter] = (results.rejectionReasons[r.filter] || 0) + 1;
-                });
-            }
-        });
-
-        console.log('\n═══════════════════════════════════════════════════════════════');
-        console.log('                    SIMULATION SUMMARY                          ');
-        console.log('═══════════════════════════════════════════════════════════════');
-        console.log(`Total: ${results.total}`);
-        console.log(`Passed: ${results.passed} (${((results.passed/results.total)*100).toFixed(1)}%)`);
-        console.log(`Elite: ${results.elite}`);
-        console.log(`Rejected: ${results.rejected}`);
-        console.log('\nRejection Breakdown:');
-        Object.entries(results.rejectionReasons)
-            .sort((a, b) => b[1] - a[1])
-            .forEach(([reason, count]) => {
-                console.log(`  ${reason}: ${count}`);
-            });
-        console.log('═══════════════════════════════════════════════════════════════\n');
-
-        return results;
+        if (this.signalHistory.length > 100) this.signalHistory.shift();
     }
 }
 
