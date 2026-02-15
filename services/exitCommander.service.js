@@ -39,7 +39,12 @@ class ExitCommanderService {
             // Option Exit
             thetaAccelerationThreshold: 2.0, // 2x normal decay
             ivCrushThreshold: 15,         // 15% IV drop
-            oiReversalThreshold: 10       // 10% OI reversal
+            oiReversalThreshold: 10,      // 10% OI reversal
+            
+            // V6: Gamma Collapse Detection
+            gammaCollapseThreshold: 0.3,  // Gamma dropped 30%+
+            deltaAccelerationThreshold: 2.0, // Delta moving 2x faster
+            gammaClusterProximity: 0.5    // Within 0.5% of gamma wall
         };
 
         // Active positions being monitored
@@ -233,6 +238,12 @@ class ExitCommanderService {
             const oiExit = this.checkOIReversal(token, position, oi);
             if (oiExit.exit) {
                 exitChecks.push({ type: 'OPTION', subtype: 'OI_REVERSAL', ...oiExit });
+            }
+
+            // D4: V6 Gamma Collapse Detection
+            const gammaExit = this.checkGammaCollapse(token, position, marketData);
+            if (gammaExit.exit) {
+                exitChecks.push({ type: 'OPTION', subtype: 'GAMMA_COLLAPSE', ...gammaExit });
             }
         }
 
