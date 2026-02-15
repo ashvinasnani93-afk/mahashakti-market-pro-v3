@@ -452,11 +452,17 @@ class MasterSignalGuardService {
 
     /**
      * Detect if instrument is option
+     * Uses strict pattern: SYMBOL + DATE + STRIKE + CE/PE
+     * Example: NIFTY25FEB25000CE, BANKNIFTY24JAN52000PE
      */
     isOptionInstrument(signal) {
         if (!signal || !signal.instrument) return false;
         const symbol = signal.instrument.symbol || '';
-        return symbol.includes('CE') || symbol.includes('PE');
+        
+        // Option pattern: ends with strike + CE/PE (e.g., 25000CE, 52000PE)
+        // This avoids false positives like "RELIANCE" containing "CE"
+        const optionPattern = /\d{4,6}(CE|PE)$/i;
+        return optionPattern.test(symbol);
     }
 
     /**
