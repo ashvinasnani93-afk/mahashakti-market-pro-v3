@@ -2,6 +2,14 @@ const instruments = require('../config/instruments.config');
 const settings = require('../config/settings.config');
 const wsService = require('./websocket.service');
 
+// V6: Exit Commander Integration
+let exitCommander = null;
+try {
+    exitCommander = require('./exitCommander.service');
+} catch (e) {
+    console.log('[RUNNER_ENGINE] Exit Commander not available');
+}
+
 class RunnerEngineService {
     constructor() {
         this.runners = new Map();
@@ -43,9 +51,49 @@ class RunnerEngineService {
         
         wsService.onPrice((data) => {
             this.handleLivePrice(data);
+            
+            // V6: Check exit conditions for active positions
+            if (exitCommander) {
+                this.checkExitConditions(data);
+            }
         });
         
         console.log('[RUNNER_ENGINE] Initialized');
+        if (exitCommander) {
+            console.log('[RUNNER_ENGINE] ✓ Exit Commander integrated');
+        }
+    }
+
+    /**
+     * V6: Check exit conditions for tracked positions
+     */
+    checkExitConditions(data) {
+        if (!exitCommander) return;
+        
+        const { token, ltp, vwap } = data;
+        const history = this.priceHistory.get(token);
+        
+        // Build market data for exit check
+        const marketData = {
+            ltp,
+            vwap: vwap || ltp,
+            candles: history ? history.map(h => ({
+                timestamp: h.timestamp,
+                open: h.price,
+                high: h.price * 1.001,
+                low: h.price * 0.999,
+                close: h.price,
+                volume: h.volume
+            })) : [],
+            atr: this.calculateATR(history || [])
+        };
+        
+        // Check exit
+        const exitResult = exitCommander.checkExit(token, marketData);
+        
+        if (exitResult.exitSignal) {
+            console.log(`[RUNNER_ENGINE] 🚪 EXIT_SIGNAL from Commander: ${exitResult.symbol} | ${exitResult.exitType}:${exitResult.exitSubtype}`);
+        }
     }
 
     loadConfig() {
