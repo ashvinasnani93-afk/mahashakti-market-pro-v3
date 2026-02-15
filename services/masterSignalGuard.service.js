@@ -29,6 +29,7 @@ const structuralStoplossService = require('./structuralStoploss.service');
 const thetaEngineService = require('./thetaEngine.service');
 const orderbookDepthService = require('./orderbookDepth.service');
 const gammaClusterService = require('./gammaCluster.service');
+const expiryRolloverService = require('./expiryRollover.service');
 
 // Phase 5: Market Context
 const volatilityRegimeService = require('./volatilityRegime.service');
