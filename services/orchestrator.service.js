@@ -701,7 +701,24 @@ class OrchestratorService {
                 : 0,
             avgRankScore: this.activeSignals.length > 0 
                 ? this.activeSignals.reduce((a, b) => a + b.rankScore, 0) / this.activeSignals.length 
-                : 0
+                : 0,
+            // 🔴 GUARD ENFORCEMENT STATS
+            guardEnforcement: {
+                signalsGenerated: this.guardStats.signalsGenerated,
+                signalsBlocked: this.guardStats.signalsBlocked,
+                blockRate: this.guardStats.signalsGenerated > 0 
+                    ? ((this.guardStats.signalsBlocked / this.guardStats.signalsGenerated) * 100).toFixed(2) + '%'
+                    : '0%',
+                blockReasons: Object.fromEntries(this.guardStats.blockReasons)
+            }
+        };
+    }
+
+    getGuardStats() {
+        return {
+            ...this.guardStats,
+            blockReasons: Object.fromEntries(this.guardStats.blockReasons),
+            masterGuard: masterSignalGuardService.getStats()
         };
     }
 
