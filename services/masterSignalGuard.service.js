@@ -453,12 +453,14 @@ class MasterSignalGuardService {
 
         // ──────────────────────────────────────────────────────────────
         // 1️⃣5️⃣ STRUCTURAL STOPLOSS (HARD - No structure = No signal)
+        // V6: Now applies to both equity AND options with different thresholds
         // ──────────────────────────────────────────────────────────────
-        if (candles && candles.length >= 20 && !isOption) {
+        if (candles && candles.length >= 20) {
             const slCheck = structuralStoplossService.calculate(
                 candles,
                 signalType,
-                signal?.price || candles[candles.length - 1]?.close || 0
+                signal?.price || candles[candles.length - 1]?.close || 0,
+                isOption  // V6: Pass isOption for different threshold
             );
             result.checks.push({ name: 'STRUCTURAL_STOPLOSS', ...slCheck });
             if (!slCheck.valid) {
@@ -472,7 +474,7 @@ class MasterSignalGuardService {
                 riskPercent: slCheck.riskPercent,
                 structureType: slCheck.structureType
             };
-        } else if (!isOption) {
+        } else {
             result.checks.push({ name: 'STRUCTURAL_STOPLOSS', valid: true, reason: 'SKIPPED: Insufficient candles' });
         }
 
