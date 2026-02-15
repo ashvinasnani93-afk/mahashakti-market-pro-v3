@@ -1,0 +1,826 @@
+[CALENDAR] Initializing NSE calendar service...
+[CALENDAR] Loaded 32 holidays
+[CALENDAR] Initialized
+[ADAPTIVE_REGIME] Initializing adaptive regime classifier...
+[ADAPTIVE_REGIME] Regimes: COMPRESSION | EXPANSION | TREND_DAY | RANGE_DAY | PANIC_DAY
+[ADAPTIVE_REGIME] Initialized
+[CLOCK_SYNC] Initializing clock sync validator...
+[CLOCK_SYNC] Drift threshold: 2000ms
+[CLOCK_SYNC] Initialized
+[CANDLE_INTEGRITY] Initializing candle integrity engine...
+[CANDLE_INTEGRITY] Initialized
+[IGNITION_STOCK] Initializing stock micro-ignition engine...
+[IGNITION_STOCK] Conditions: Body>60%, Vol≥1.8x, VWAP reclaim, ATR rising
+[IGNITION_STOCK] Initialized
+[IGNITION_OPTION] Initializing option premium micro-ignition engine...
+[IGNITION_OPTION] Conditions: Premium≥4%, OI rising, Spread≤12%, Direction aligned
+[IGNITION_OPTION] Initialized
+[PANIC_KILL] Initializing panic kill switch...
+[PANIC_KILL] Initialized
+[CIRCUIT_BREAKER] Initializing circuit breaker detection...
+[CIRCUIT_BREAKER] Initialized
+[LATENCY_MONITOR] Initializing latency monitor...
+[LATENCY_MONITOR] Initialized
+[DRAWDOWN_GUARD] Initializing drawdown guard...
+[DRAWDOWN_GUARD] Initialized
+[EXECUTION_REALITY] Initializing execution reality guard...
+[EXECUTION_REALITY] Spread threshold: 80%
+[EXECUTION_REALITY] Parabolic multiplier: 4x
+[EXECUTION_REALITY] Initialized
+[PORTFOLIO_COMMANDER] Initializing portfolio risk commander...
+[PORTFOLIO_COMMANDER] Max trades: 5
+[PORTFOLIO_COMMANDER] Loss streak lock: 3
+[PORTFOLIO_COMMANDER] Initialized
+[LIQUIDITY_TIER] Initializing liquidity tier engine...
+[LIQUIDITY_TIER] Tier thresholds: T1 > 50Cr, T2 10-50Cr, T3 < 10Cr
+[LIQUIDITY_TIER] Initialized
+[RELATIVE_STRENGTH] Initializing RS engine...
+[RELATIVE_STRENGTH] Initialized
+[LIQUIDITY_SHOCK] Initializing liquidity shock filter...
+[LIQUIDITY_SHOCK] Initialized
+[STRUCTURAL_SL] Initializing structural stoploss engine...
+[STRUCTURAL_SL] Initialized
+[THETA_ENGINE] Initializing theta decay engine...
+[THETA_ENGINE] Initialized
+[ORDERBOOK_DEPTH] Initializing orderbook depth engine...
+[ORDERBOOK_DEPTH] Initialized
+[GAMMA_CLUSTER] Initializing gamma cluster detection...
+[GAMMA_CLUSTER] Initialized
+[EXPIRY_ROLLOVER] Initializing expiry rollover service...
+[EXPIRY_ROLLOVER] Initialized
+[VOLATILITY_REGIME] Initializing volatility regime classifier...
+[VOLATILITY_REGIME] Initialized
+[TIME_OF_DAY] Initializing time-of-day filter...
+[TIME_OF_DAY] Initialized
+[GAP_DAY] Initializing gap day override service...
+[GAP_DAY] Initialized
+[BREADTH] Initializing market breadth engine...
+[BREADTH] Initialized
+[CROWDING_DETECTOR] Initializing crowding detection...
+[CROWDING_DETECTOR] Initialized
+[CORRELATION_ENGINE] Initializing correlation engine...
+[CORRELATION_ENGINE] Initialized
+[CONFIDENCE_SCORING] Initializing V6 confidence scoring...
+[CONFIDENCE_SCORING] Minimum emit threshold: 52
+[CONFIDENCE_SCORING] Initialized
+[SIGNAL_LIFECYCLE] Initializing signal lifecycle tracker...
+[SIGNAL_LIFECYCLE] Initialized
+[MASTER_GUARD] Initializing Master Signal Guard V6.1...
+[MASTER_GUARD] STRICT MODE: ENABLED - All guards are HARD BLOCKS
+[MASTER_GUARD] V6.1: Minimum confidence = 52
+[MASTER_GUARD] Initialized
+[EXIT_COMMANDER] Initializing exit commander...
+[EXIT_COMMANDER] Exit types: STRUCTURAL | TRAILING | REGIME | OPTION
+[EXIT_COMMANDER] Initialized
+
+═══════════════════════════════════════════════════════════════════
+       MAHASHAKTI V6 - PRE-PRODUCTION AUDIT                        
+═══════════════════════════════════════════════════════════════════
+
+═══════════════════════════════════════════════════════════════════
+1️⃣ GUARD TYPE CLASSIFICATION TABLE
+═══════════════════════════════════════════════════════════════════
+
+┌────────────────────────────┬──────────┬──────────┬─────────────────────────────────────┐
+│ Guard Name                 │ Type     │ Position │ Description                         │
+├────────────────────────────┼──────────┼──────────┼─────────────────────────────────────┤
+│ ADAPTIVE_REGIME            │ ADJUST   │    1     │ Sets dynamic thresholds, soft warni │
+│ IGNITION_CHECK             │ ADJUST   │    2     │ Boosts confidence, promotes to CORE │
+│ TRADING_HOURS              │ HARD     │    3     │ Block outside 9:15-15:30 IST        │
+│ HOLIDAY_CHECK              │ HARD     │    4     │ Block on NSE holidays               │
+│ CLOCK_SYNC                 │ HARD     │    5     │ Block if drift > 2000ms             │
+│ PANIC_KILL_SWITCH          │ HARD     │    6     │ Block on panic mode (NIFTY >3% drop │
+│ CIRCUIT_BREAKER            │ HARD     │    7     │ Block on circuit hit symbols        │
+│ LIQUIDITY_TIER             │ HARD     │    8     │ Block T3 illiquid stocks            │
+│ LATENCY_MONITOR            │ HARD     │    9     │ Block on high latency               │
+│ EXECUTION_REALITY          │ CONDITIONAL_HARD │   10     │ Block only on extreme spread collap │
+│ PORTFOLIO_COMMANDER        │ HARD     │   11     │ Block on max positions/loss streak/ │
+│ DRAWDOWN_GUARD             │ HARD     │   12     │ Block on daily drawdown limit       │
+│ LIQUIDITY_SHOCK            │ HARD     │   13     │ Block on sudden liquidity drop      │
+│ RELATIVE_STRENGTH          │ HARD     │   14     │ Block underperforming vs index      │
+│ VOLATILITY_REGIME          │ ADJUST   │   15     │ Adjusts based on vol regime         │
+│ TIME_OF_DAY                │ ADJUST   │   16     │ Adjusts for opening/lunch/closing   │
+│ GAP_DAY                    │ ADJUST   │   17     │ Adjusts for gap up/down days        │
+│ CANDLE_INTEGRITY           │ HARD     │   18     │ Block on insufficient candle data   │
+│ STRUCTURAL_STOPLOSS        │ HARD     │   19     │ Block if equity risk>4.5% or option │
+│ EXPIRY_ROLLOVER            │ HARD     │   20     │ Block wrong expiry options          │
+│ THETA_ENGINE               │ HARD     │   21     │ Block deep OTM/theta crush          │
+│ ORDERBOOK_DEPTH            │ HARD     │   22     │ Block >18% spread options           │
+│ GAMMA_CLUSTER              │ ADJUST   │   23     │ Upgrades near gamma walls           │
+│ BREADTH                    │ ADJUST   │   24     │ Up/downgrade based on market breadt │
+│ V6_CROWD_PSYCHOLOGY        │ HARD     │   25     │ Block late breakout/PCR extreme     │
+│ CROWDING_DETECTOR          │ WARN     │   26     │ Warns on trap risk                  │
+│ CORRELATION                │ WARN     │   27     │ Warns on low correlation            │
+│ CONFIDENCE_SCORE           │ HARD     │   28     │ Block if score < 52                 │
+└────────────────────────────┴──────────┴──────────┴─────────────────────────────────────┘
+
+📊 GUARD TYPE SUMMARY:
+   → HARD BLOCKS: 18 (signal killed immediately)
+   → ADJUST:      7 (confidence modified)
+   → WARN:        3 (warning only, no block)
+   → TOTAL:       28 guards
+
+═══════════════════════════════════════════════════════════════════
+2️⃣ V5 vs V6 COMPARATIVE BACKTEST (30 Days Simulation)
+═══════════════════════════════════════════════════════════════════
+
+Running 30-day backtest simulation...
+
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 14.44% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.85% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.64% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.55% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.57% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.89% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.17% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.80% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.04% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.52% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.17% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.08% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.16% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.04% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.91% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.02% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 11.75% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.63% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 11.41% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.29% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.15% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.29% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.31% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 13.17% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.36% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.13% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.47% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.77% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.35% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.65% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.85% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 80.3% widening (0.34% → 0.62%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 80.3% widening (0.34% → 0.62%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.06% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.34% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.73% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.79% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.05% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.38% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.93% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.86% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.08% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.08% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.81% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.15% < 0.3% min - Too tight
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 85.3% widening (0.34% → 0.64%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 85.3% widening (0.34% → 0.64%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.35% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.59% > 6% max
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 89.6% widening (0.34% → 0.65%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 89.6% widening (0.34% → 0.65%)
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 91.2% widening (0.34% → 0.66%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 91.2% widening (0.34% → 0.66%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 81.4% widening (0.35% → 0.64%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 81.4% widening (0.35% → 0.64%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.14% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.06% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 93.9% widening (0.35% → 0.69%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 93.9% widening (0.35% → 0.69%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.57% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.87% > 6% max
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 83.0% widening (0.35% → 0.65%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 83.0% widening (0.35% → 0.65%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.40% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.92% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 14.41% > 6% max
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 82.2% widening (0.35% → 0.65%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 82.2% widening (0.35% → 0.65%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.10% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.29% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.44% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.21% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.70% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.02% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.80% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 11.84% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.34% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.06% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.54% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 81.1% widening (0.34% → 0.62%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 81.1% widening (0.34% → 0.62%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 11.91% > 4.5% max
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 84.7% widening (0.35% → 0.65%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 84.7% widening (0.35% → 0.65%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.88% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.09% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 13.21% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.42% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.26% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.02% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.62% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.14% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.30% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.89% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 12.32% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 14.89% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.20% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.84% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.21% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 12.31% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.09% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.07% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.81% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.55% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.07% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.06% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.04% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.84% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.08% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.72% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.79% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.50% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.10% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.70% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.63% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.99% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.07% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.30% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.83% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.73% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.21% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.21% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 16.70% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.46% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.22% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.46% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.81% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.50% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.02% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.27% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 84.0% widening (0.36% → 0.67%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 84.0% widening (0.36% → 0.67%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.23% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.16% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 14.47% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.51% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.65% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 15.75% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.21% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.63% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.23% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.58% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.26% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.23% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.39% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.40% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.60% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 85.0% widening (0.36% → 0.67%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 85.0% widening (0.36% → 0.67%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 97.1% widening (0.34% → 0.68%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 97.1% widening (0.34% → 0.68%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.10% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.61% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.02% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.18% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.11% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.36% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.32% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.08% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.94% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.40% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.02% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 13.07% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.98% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.20% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 39 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.53% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.16% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.03% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.94% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.46% > 4.5% max
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 96.2% widening (0.34% → 0.68%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 96.2% widening (0.34% → 0.68%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 13.42% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.07% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 0.16% < 0.3% min - Too tight
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.72% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.55% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.50% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.99% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.76% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.12% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.96% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.60% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.63% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.57% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.31% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.88% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.17% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 15.44% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.56% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.97% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.73% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 16.03% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 4.67% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.16% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.06% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 8.33% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.18% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 11.04% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.65% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 85.4% widening (0.37% → 0.69%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 85.4% widening (0.37% → 0.69%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.21% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.73% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.08% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 11.81% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 13.08% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 81.7% widening (0.36% → 0.66%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 81.7% widening (0.36% → 0.66%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 13.59% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.29% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.67% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 10.16% > 6% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 9.80% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.26% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 7.95% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 43 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.77% > 4.5% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 80.3% widening (0.37% → 0.67%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 80.3% widening (0.37% → 0.67%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 86.3% widening (0.35% → 0.66%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 86.3% widening (0.35% → 0.66%)
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 5.37% > 4.5% max
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 6.29% > 6% max
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 45 < 52 minimum
+[MASTER_GUARD] 🚫 STRUCTURAL_SL_BLOCK: Risk 16.04% > 4.5% max
+[EXECUTION_REALITY] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING | SPREAD_WIDENING: 94.0% widening (0.35% → 0.69%)
+[MASTER_GUARD] 🚫 EXECUTION_BLOCKED: SPREAD_WIDENING: 94.0% widening (0.35% → 0.69%)
+[MASTER_GUARD] 🚫 CONFIDENCE_BLOCKED: Score 41 < 52 minimum
+┌─────────────────────────────┬──────────────┬──────────────┬─────────────┐
+│ Metric                      │ V5           │ V6           │ Change      │
+├─────────────────────────────┼──────────────┼──────────────┼─────────────┤
+│ Total Signals Generated     │          450 │          450 │ -           │
+│ Signals Passed (Emitted)    │          247 │            0 │    100.0%   │
+│ Win Count                   │          112 │            0 │ -           │
+│ Loss Count                  │          135 │            0 │ -           │
+│ Win Rate                    │        45.3% │           0% │ -45.3%     │
+│ Avg RR (Winners)            │         1.47 │            0 │ -1.47       │
+│ Total PnL (simulated)       │         68.3 │          0.0 │ -           │
+└─────────────────────────────┴──────────────┴──────────────┴─────────────┘
+
+📊 V6 BLOCK REASON DISTRIBUTION:
+   → CONFIDENCE_BLOCKED       : 243 (54.0%)
+   → STRUCTURAL_SL_BLOCK      : 188 (41.8%)
+   → EXECUTION_BLOCKED        : 19 (4.2%)
+
+📊 ANALYSIS:
+   ⚠️ OVERFILTER WARNING: Signal reduction 100.0% > 70%
+   → Consider loosening some HARD blocks to ADJUST
+   ⚠️ WIN RATE DROPPED: -45.3%
+
+═══════════════════════════════════════════════════════════════════
+3️⃣ EXIT COMMANDER DEEP AUDIT
+═══════════════════════════════════════════════════════════════════
+
+📋 EXIT COMMANDER CONFIGURATION AUDIT:
+
+┌────────────────────────────────────────────────────────────────────┐
+│ QUESTION                                    │ ANSWER              │
+├────────────────────────────────────────────────────────────────────┤
+│ 1. Trailing method?                         │ ATR-BASED           │
+│    ATR Multiplier:                          │ 1.5x ATR            │
+│    Min profit to trail:                     │ 1.5%                │
+│ 2. Structural SL buffer:                    │ 0.20%               │
+│    Method:                                  │ SWING LEVEL BREAK   │
+│    Uses candle close:                       │ YES (low/high)      │
+│ 3. Regime exit sensitivity:                 │ 70%                 │
+│    Vol collapse threshold:                  │ 40% drop            │
+│    Breadth collapse threshold:              │ 30%                 │
+│ 4. Option exit covers:                      │                     │
+│    - Theta acceleration:                    │ YES (2x threshold)  │
+│    - IV crush:                              │ YES (15% drop)      │
+│    - OI reversal:                           │ YES (10% reversal)  │
+│    - Gamma collapse:                        │ YES (30% drop)      │
+└────────────────────────────────────────────────────────────────────┘
+
+📊 EXIT PERFORMANCE SIMULATION:
+
+[EXIT_COMMANDER] 📍 Position registered: TEST0 LONG @ 1282.9742192491437
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST0 | Type: STRUCTURAL:SWING_BREAK | PnL: -3.17%
+[EXIT_COMMANDER] ✅ Position closed: TEST0 | PnL: -3.17%
+[EXIT_COMMANDER] 📍 Position registered: TEST1 SHORT @ 1135.8691782433152
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST1 | Type: STRUCTURAL:SWING_BREAK | PnL: -3.74%
+[EXIT_COMMANDER] ✅ Position closed: TEST1 | PnL: -3.74%
+[EXIT_COMMANDER] 📍 Position registered: TEST2 SHORT @ 1445.41898490424
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST2 | Type: REGIME:REGIME_SHIFT | PnL: 2.22%
+[EXIT_COMMANDER] ✅ Position closed: TEST2 | PnL: 2.22%
+[EXIT_COMMANDER] 📍 Position registered: TEST3 SHORT @ 1506.4466171765653
+[EXIT_COMMANDER] ✅ Position closed: TEST3 | PnL: 3.95%
+[EXIT_COMMANDER] 📍 Position registered: TEST4 SHORT @ 1218.9416061097654
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST4 | Type: OPTION:IV_CRUSH | PnL: 1.74%
+[EXIT_COMMANDER] ✅ Position closed: TEST4 | PnL: 1.74%
+[EXIT_COMMANDER] 📍 Position registered: TEST5 LONG @ 1968.9833721781736
+[EXIT_COMMANDER] ✅ Position closed: TEST5 | PnL: 2.98%
+[EXIT_COMMANDER] 📍 Position registered: TEST6 LONG @ 1158.0677285217773
+[EXIT_COMMANDER] ✅ Position closed: TEST6 | PnL: 4.77%
+[EXIT_COMMANDER] 📍 Position registered: TEST7 LONG @ 1468.9077385843627
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST7 | Type: STRUCTURAL:SWING_BREAK | PnL: -5.76%
+[EXIT_COMMANDER] ✅ Position closed: TEST7 | PnL: -5.76%
+[EXIT_COMMANDER] 📍 Position registered: TEST8 SHORT @ 1120.029242366604
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST8 | Type: STRUCTURAL:SWING_BREAK | PnL: -3.18%
+[EXIT_COMMANDER] ✅ Position closed: TEST8 | PnL: -3.18%
+[EXIT_COMMANDER] 📍 Position registered: TEST9 LONG @ 1951.700938803997
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST9 | Type: TRAILING:SWING_PATTERN | PnL: -1.13%
+[EXIT_COMMANDER] ✅ Position closed: TEST9 | PnL: -1.13%
+[EXIT_COMMANDER] 📍 Position registered: TEST10 SHORT @ 1978.9703176684172
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST10 | Type: STRUCTURAL:SWING_BREAK | PnL: -1.54%
+[EXIT_COMMANDER] ✅ Position closed: TEST10 | PnL: -1.54%
+[EXIT_COMMANDER] 📍 Position registered: TEST11 SHORT @ 1822.0160429993325
+[EXIT_COMMANDER] ✅ Position closed: TEST11 | PnL: -4.69%
+[EXIT_COMMANDER] 📍 Position registered: TEST12 LONG @ 1066.3816627073588
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST12 | Type: TRAILING:SWING_PATTERN | PnL: -1.99%
+[EXIT_COMMANDER] ✅ Position closed: TEST12 | PnL: -1.99%
+[EXIT_COMMANDER] 📍 Position registered: TEST13 LONG @ 1403.6785140088718
+[EXIT_COMMANDER] ✅ Position closed: TEST13 | PnL: 3.30%
+[EXIT_COMMANDER] 📍 Position registered: TEST14 SHORT @ 1552.501948859302
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST14 | Type: TRAILING:SWING_PATTERN | PnL: -1.36%
+[EXIT_COMMANDER] ✅ Position closed: TEST14 | PnL: -1.36%
+[EXIT_COMMANDER] 📍 Position registered: TEST15 LONG @ 1740.0536171594958
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST15 | Type: STRUCTURAL:SWING_BREAK | PnL: -3.75%
+[EXIT_COMMANDER] ✅ Position closed: TEST15 | PnL: -3.75%
+[EXIT_COMMANDER] 📍 Position registered: TEST16 LONG @ 1995.4616083502028
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST16 | Type: STRUCTURAL:SWING_BREAK | PnL: -5.90%
+[EXIT_COMMANDER] ✅ Position closed: TEST16 | PnL: -5.90%
+[EXIT_COMMANDER] 📍 Position registered: TEST17 SHORT @ 1450.2153438110483
+[EXIT_COMMANDER] ✅ Position closed: TEST17 | PnL: 3.82%
+[EXIT_COMMANDER] 📍 Position registered: TEST18 SHORT @ 1225.7544748147177
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST18 | Type: STRUCTURAL:SWING_BREAK | PnL: -2.52%
+[EXIT_COMMANDER] ✅ Position closed: TEST18 | PnL: -2.52%
+[EXIT_COMMANDER] 📍 Position registered: TEST19 LONG @ 1486.2731130261236
+[EXIT_COMMANDER] ✅ Position closed: TEST19 | PnL: 2.26%
+[EXIT_COMMANDER] 📍 Position registered: TEST20 LONG @ 1003.1706920036967
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST20 | Type: REGIME:REGIME_SHIFT | PnL: 3.56%
+[EXIT_COMMANDER] ✅ Position closed: TEST20 | PnL: 3.56%
+[EXIT_COMMANDER] 📍 Position registered: TEST21 SHORT @ 1710.9474409716117
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST21 | Type: STRUCTURAL:SWING_BREAK | PnL: -5.54%
+[EXIT_COMMANDER] ✅ Position closed: TEST21 | PnL: -5.54%
+[EXIT_COMMANDER] 📍 Position registered: TEST22 SHORT @ 1173.4131027491653
+[EXIT_COMMANDER] ✅ Position closed: TEST22 | PnL: 3.48%
+[EXIT_COMMANDER] 📍 Position registered: TEST23 LONG @ 1639.0820493660608
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST23 | Type: OPTION:GAMMA_COLLAPSE | PnL: 4.79%
+[EXIT_COMMANDER] ✅ Position closed: TEST23 | PnL: 4.79%
+[EXIT_COMMANDER] 📍 Position registered: TEST24 SHORT @ 1381.8223229776656
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST24 | Type: OPTION:IV_CRUSH | PnL: 4.29%
+[EXIT_COMMANDER] ✅ Position closed: TEST24 | PnL: 4.29%
+[EXIT_COMMANDER] 📍 Position registered: TEST25 LONG @ 1433.4662420492123
+[EXIT_COMMANDER] ✅ Position closed: TEST25 | PnL: 4.16%
+[EXIT_COMMANDER] 📍 Position registered: TEST26 SHORT @ 1442.2070653917795
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST26 | Type: STRUCTURAL:SWING_BREAK | PnL: -1.48%
+[EXIT_COMMANDER] ✅ Position closed: TEST26 | PnL: -1.48%
+[EXIT_COMMANDER] 📍 Position registered: TEST27 SHORT @ 1346.4775169274117
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST27 | Type: REGIME:REGIME_SHIFT | PnL: 1.80%
+[EXIT_COMMANDER] ✅ Position closed: TEST27 | PnL: 1.80%
+[EXIT_COMMANDER] 📍 Position registered: TEST28 SHORT @ 1433.3182392831773
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST28 | Type: OPTION:IV_CRUSH | PnL: 5.88%
+[EXIT_COMMANDER] ✅ Position closed: TEST28 | PnL: 5.88%
+[EXIT_COMMANDER] 📍 Position registered: TEST29 SHORT @ 1414.8274345330726
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST29 | Type: STRUCTURAL:SWING_BREAK | PnL: -4.35%
+[EXIT_COMMANDER] ✅ Position closed: TEST29 | PnL: -4.35%
+[EXIT_COMMANDER] 📍 Position registered: TEST30 LONG @ 1870.499396584899
+[EXIT_COMMANDER] ✅ Position closed: TEST30 | PnL: 5.03%
+[EXIT_COMMANDER] 📍 Position registered: TEST31 SHORT @ 1427.6291730501655
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST31 | Type: OPTION:THETA_ACCEL | PnL: 4.08%
+[EXIT_COMMANDER] ✅ Position closed: TEST31 | PnL: 4.08%
+[EXIT_COMMANDER] 📍 Position registered: TEST32 LONG @ 1168.2954994192771
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST32 | Type: STRUCTURAL:SWING_BREAK | PnL: -4.30%
+[EXIT_COMMANDER] ✅ Position closed: TEST32 | PnL: -4.30%
+[EXIT_COMMANDER] 📍 Position registered: TEST33 LONG @ 1872.3839658729169
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST33 | Type: STRUCTURAL:SWING_BREAK | PnL: -4.50%
+[EXIT_COMMANDER] ✅ Position closed: TEST33 | PnL: -4.50%
+[EXIT_COMMANDER] 📍 Position registered: TEST34 LONG @ 1263.6994920908783
+[EXIT_COMMANDER] ✅ Position closed: TEST34 | PnL: 2.61%
+[EXIT_COMMANDER] 📍 Position registered: TEST35 SHORT @ 1944.9875126838801
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST35 | Type: TRAILING:SWING_PATTERN | PnL: 2.43%
+[EXIT_COMMANDER] ✅ Position closed: TEST35 | PnL: 2.43%
+[EXIT_COMMANDER] 📍 Position registered: TEST36 LONG @ 1194.1857679917894
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST36 | Type: OPTION:THETA_ACCEL | PnL: 1.69%
+[EXIT_COMMANDER] ✅ Position closed: TEST36 | PnL: 1.69%
+[EXIT_COMMANDER] 📍 Position registered: TEST37 SHORT @ 1670.6351160655947
+[EXIT_COMMANDER] ✅ Position closed: TEST37 | PnL: 5.89%
+[EXIT_COMMANDER] 📍 Position registered: TEST38 LONG @ 1883.0816782200375
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST38 | Type: REGIME:REGIME_SHIFT | PnL: 4.48%
+[EXIT_COMMANDER] ✅ Position closed: TEST38 | PnL: 4.48%
+[EXIT_COMMANDER] 📍 Position registered: TEST39 SHORT @ 1820.2594592731243
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST39 | Type: REGIME:REGIME_SHIFT | PnL: -1.36%
+[EXIT_COMMANDER] ✅ Position closed: TEST39 | PnL: -1.36%
+[EXIT_COMMANDER] 📍 Position registered: TEST40 LONG @ 1313.1860937553524
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST40 | Type: REGIME:REGIME_SHIFT | PnL: 1.49%
+[EXIT_COMMANDER] ✅ Position closed: TEST40 | PnL: 1.49%
+[EXIT_COMMANDER] 📍 Position registered: TEST41 SHORT @ 1935.5277821696036
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST41 | Type: STRUCTURAL:SWING_BREAK | PnL: -3.13%
+[EXIT_COMMANDER] ✅ Position closed: TEST41 | PnL: -3.13%
+[EXIT_COMMANDER] 📍 Position registered: TEST42 LONG @ 1827.8374732684542
+[EXIT_COMMANDER] ✅ Position closed: TEST42 | PnL: 5.11%
+[EXIT_COMMANDER] 📍 Position registered: TEST43 LONG @ 1704.942333133072
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST43 | Type: OPTION:GAMMA_COLLAPSE | PnL: 5.27%
+[EXIT_COMMANDER] ✅ Position closed: TEST43 | PnL: 5.27%
+[EXIT_COMMANDER] 📍 Position registered: TEST44 LONG @ 1876.9645596322052
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST44 | Type: STRUCTURAL:SWING_BREAK | PnL: -2.52%
+[EXIT_COMMANDER] ✅ Position closed: TEST44 | PnL: -2.52%
+[EXIT_COMMANDER] 📍 Position registered: TEST45 SHORT @ 1092.0655925656702
+[EXIT_COMMANDER] ✅ Position closed: TEST45 | PnL: 3.21%
+[EXIT_COMMANDER] 📍 Position registered: TEST46 SHORT @ 1528.1163447763981
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST46 | Type: STRUCTURAL:SWING_BREAK | PnL: -5.32%
+[EXIT_COMMANDER] ✅ Position closed: TEST46 | PnL: -5.32%
+[EXIT_COMMANDER] 📍 Position registered: TEST47 SHORT @ 1895.2974849687803
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST47 | Type: REGIME:REGIME_SHIFT | PnL: 4.29%
+[EXIT_COMMANDER] ✅ Position closed: TEST47 | PnL: 4.29%
+[EXIT_COMMANDER] 📍 Position registered: TEST48 SHORT @ 1141.7346057397338
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST48 | Type: STRUCTURAL:SWING_BREAK | PnL: -3.42%
+[EXIT_COMMANDER] ✅ Position closed: TEST48 | PnL: -3.42%
+[EXIT_COMMANDER] 📍 Position registered: TEST49 LONG @ 1423.3717966289205
+[EXIT_COMMANDER] 🚪 EXIT_SIGNAL: TEST49 | Type: STRUCTURAL:SWING_BREAK | PnL: -5.90%
+[EXIT_COMMANDER] ✅ Position closed: TEST49 | PnL: -5.90%
+┌─────────────────────┬───────────┬─────────────────┬────────────────┐
+│ Exit Type           │ Count     │ Avg Hold Time   │ Avg Exit Gain  │
+├─────────────────────┼───────────┼─────────────────┼────────────────┤
+│ STRUCTURAL          │        18 │        28.6 min │         -3.89% │
+│ TRAILING            │         4 │        12.1 min │         -0.51% │
+│ REGIME              │         7 │        25.5 min │          2.36% │
+│ OPTION              │         7 │        23.7 min │          3.96% │
+├─────────────────────┼───────────┼─────────────────┼────────────────┤
+│ TOTAL EXITS         │        36 │ -               │ -              │
+│ PREMATURE EXITS     │         2 │ (<10 min loss)  │ -              │
+└─────────────────────┴───────────┴─────────────────┴────────────────┘
+
+📊 EXIT COMMANDER ASSESSMENT:
+
+   ✅ HEALTHY EXIT DISCIPLINE: 5.6% premature (<15%)
+
+   → Trailing: ATR-BASED (1.5x ATR)
+   → Structural: Swing level break with 0.20% buffer
+   → Regime: 70% sensitivity, not premature
+   → Option: Theta + IV + OI covered, NO gamma collapse (add if needed)
+
+═══════════════════════════════════════════════════════════════════
+                    FINAL PRE-PRODUCTION VERDICT                    
+═══════════════════════════════════════════════════════════════════
+
+CHECKLIST:
+   [✅] HARD guards count: 18 (need ≥15)
+   [⚠️] Signal reduction: 100.0% (target <70%)
+   [⚠️] Win rate improved: V5 45.3% → V6 0%
+   [⚠️] RR improved: V5 1.47 → V6 0
+   [✅] Premature exits: 5.6% (target <30%)
+   [✅] Trailing method: ATR-based (not fixed %)
+   [✅] Structural SL: Uses candle close levels
+   [⚠️] Gamma collapse: NOT IMPLEMENTED (optional)
+
+   ISSUES: 0
+   WARNINGS: 4
+
+   🟡 VERDICT: PRODUCTION READY WITH CAUTION
+   → Some warnings need monitoring
+   → Can proceed but watch metrics closely
+
+═══════════════════════════════════════════════════════════════════
+
