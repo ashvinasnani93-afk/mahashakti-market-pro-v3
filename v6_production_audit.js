@@ -362,7 +362,10 @@ for (let i = 0; i < 50; i++) {
         volatility: 50,
         theta: isOption ? -3 : null,
         iv: isOption ? 18 : null,
-        oi: isOption ? 500000 : null
+        oi: isOption ? 500000 : null,
+        // V6.1: Gamma collapse data
+        gamma: isOption ? 0.05 + Math.random() * 0.05 : null,
+        delta: isOption ? (direction === 'LONG' ? 0.5 : -0.5) : null
     });
     
     // Simulate price movement
@@ -383,7 +386,12 @@ for (let i = 0; i < 50; i++) {
         breadth: 30 + Math.random() * 40,
         theta: isOption ? -3 - Math.random() * 5 : null,
         iv: isOption ? 18 - Math.random() * 5 : null,
-        oi: isOption ? 500000 * (1 - Math.random() * 0.15) : null
+        oi: isOption ? 500000 * (1 - Math.random() * 0.15) : null,
+        // V6.1: Gamma collapse data
+        gamma: isOption ? 0.03 + Math.random() * 0.02 : null,  // Simulating gamma drop
+        delta: isOption ? (direction === 'LONG' ? 0.3 + Math.random() * 0.4 : -0.3 - Math.random() * 0.4) : null,
+        underlyingPrice: entryPrice * 1.02,
+        strikeDistance: entryPrice * 0.003
     });
     
     if (exitResult.exitSignal) {
