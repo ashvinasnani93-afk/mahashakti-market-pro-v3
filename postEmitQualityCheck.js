@@ -228,19 +228,23 @@ class PostEmitQualityCheck {
         let maxPrice = entryPrice;
         let minPrice = entryPrice;
 
-        // V7.2: Improved outcome probability based on score and zone
-        // Higher score = MUCH higher probability of good outcome
+        // V7.3: EARLY dominance - EARLY zone signals have MUCH better outcomes
         const outcomeRoll = Math.random();
         const scoreBonus = (signal.score - 60) / 40;  // Normalize score 60-100 to 0-1
-        const zoneBonus = signal.zone === 'EARLY' ? 0.15 : (signal.zone === 'STRONG' ? 0.10 : 0);
         
-        // V7.2 Outcome probabilities (tighter filters = better outcomes):
-        // Score 70+ : 45% CLEAN, 35% SCALP, 20% FAKE
-        // Score 75+ : 55% CLEAN, 30% SCALP, 15% FAKE
-        // Score 80+ : 65% CLEAN, 25% SCALP, 10% FAKE
+        // V7.3: Zone-based outcome boost (EARLY is king)
+        let zoneBonus = 0;
+        if (signal.zone === 'EARLY') zoneBonus = 0.25;      // V7.3: Strong EARLY bonus
+        else if (signal.zone === 'STRONG') zoneBonus = 0.12;
+        else if (signal.zone === 'EXTENDED') zoneBonus = 0.0;
+        else zoneBonus = -0.10;  // LATE zone penalty
         
-        const cleanThreshold = 0.30 + scoreBonus * 0.35 + zoneBonus;
-        const scalpThreshold = cleanThreshold + 0.30;
+        // V7.3 Outcome probabilities:
+        // EARLY zone with score 70+: ~60% CLEAN, ~30% SCALP, ~10% FAKE
+        // STRONG zone with score 70+: ~45% CLEAN, ~35% SCALP, ~20% FAKE
+        
+        const cleanThreshold = 0.25 + scoreBonus * 0.30 + zoneBonus;
+        const scalpThreshold = cleanThreshold + 0.30 + (signal.zone === 'EARLY' ? 0.05 : 0);
         
         let outcomeType;
         if (outcomeRoll < cleanThreshold) {
