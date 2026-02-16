@@ -269,8 +269,8 @@ class LiveSignalAudit {
             const circuitPercent = Math.random() > 0.7 ? 20 : 10;
             const spread = 0.2 + Math.random() * 0.8;
 
-            // Generate minimal candles (5 instead of 25)
-            const candles = this.generateMinimalCandles(openPrice, 5, movePercent > 0 ? 'up' : 'down');
+            // Generate 15 candles with realistic volume patterns
+            const candles = this.generateRealisticCandlesWithVolume(openPrice, 15, movePercent > 0 ? 'up' : 'down');
 
             const signalData = {
                 symbol: symbolName,
