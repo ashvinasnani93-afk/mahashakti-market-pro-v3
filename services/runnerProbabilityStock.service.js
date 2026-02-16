@@ -26,57 +26,62 @@ class RunnerProbabilityStockService {
             LATE: { min: 8, max: 9.5 }      // 8-9.5% move (only 10% circuit stocks)
         };
 
-        // Zone-specific requirements (V7.1 CALIBRATED - Based on real market percentiles)
-        // Target emit rate: 3-8%
+        // V7.2 ELITE HARDENING - Tightened for quality
+        // Target emit rate: 1.5-2.5%, +1% hit ≥70%, Fake break ≤25%
         this.zoneConfig = {
             EARLY: {
-                minVolume: 1.5,           // Relaxed from 2.0 (P60)
-                minRS: 1.0,               // Relaxed from 1.5
-                maxSpread: 1.0,           // Relaxed from 0.8 (P80)
+                minVolume: 1.8,           // V7.2: Tightened from 1.5
+                minRS: 1.2,               // V7.2: Tightened from 1.0
+                maxSpread: 0.9,           // Kept from V7.1
                 minRemainingRoom: 5,
                 requireVWAP: false,
-                requireHigherLow: false
+                requireHigherLow: false,
+                minScore: 65              // V7.2: Minimum score
             },
             STRONG: {
-                minVolume: 1.8,           // Relaxed from 2.5 (P70)
-                minRS: 1.5,               // Relaxed from 2.0
-                maxSpread: 0.9,           // Relaxed from 0.7 (P75)
+                minVolume: 2.0,           // V7.2: Tightened from 1.8
+                minRS: 1.5,               // V7.2: Kept at 1.5
+                maxSpread: 0.8,           // V7.2: Tightened from 0.9
                 minRemainingRoom: 4,
-                requireVWAP: false,       // Relaxed from true
+                requireVWAP: false,
                 requireHigherLow: false,
-                noExhaustionWick: false   // Relaxed - too strict
+                noExhaustionWick: false,
+                minScore: 68              // V7.2: Minimum score
             },
             EXTENDED: {
-                minVolume: 2.2,           // Relaxed from 2.5 (P75)
-                minRS: 1.5,               // Relaxed from 2.0
-                maxSpread: 0.8,           // Relaxed from 0.6 (P80)
-                minRemainingRoom: 2.5,    // Relaxed from 3.0
-                maxSL: 5.0,               // Relaxed from 4.5
-                requireVWAP: false,       // Relaxed
-                requireHigherLow: false,  // Relaxed
-                requireATRExpanding: false // Relaxed
+                minVolume: 2.5,           // V7.2: Tightened from 2.2
+                minRS: 1.8,               // V7.2: Tightened from 1.5
+                maxSpread: 0.7,           // V7.2: Tightened from 0.8
+                minRemainingRoom: 3.0,    // V7.2: Tightened from 2.5
+                maxSL: 4.5,               // V7.2: Tightened from 5.0
+                requireVWAP: false,
+                requireHigherLow: true,   // V7.2: MANDATORY
+                requireATRExpanding: true, // V7.2: MANDATORY
+                minScore: 72              // V7.2: Minimum score
             },
             LATE: {
-                minVolume: 2.8,           // Relaxed from 3.0 (P80)
-                minRS: 2.0,               // Relaxed from 2.5
-                maxSpread: 0.7,           // Relaxed from 0.5 (P85)
-                minRemainingRoom: 1.0,    // Relaxed from 1.5
-                maxSL: 4.0,               // Relaxed from 3.5
-                requireVWAP: false,       // Relaxed
-                requireHigherLow: false,  // Relaxed
-                noRejectionWick: false,   // Relaxed
-                requireMomentumIntact: false, // Relaxed
-                onlyFor10PercentCircuit: true
+                minVolume: 3.0,           // V7.2: Tightened from 2.8
+                minRS: 2.2,               // V7.2: Tightened from 2.0
+                maxSpread: 0.6,           // V7.2: Tightened from 0.7
+                minRemainingRoom: 1.5,    // V7.2: Tightened from 1.0
+                maxSL: 3.5,               // V7.2: Tightened from 4.0
+                requireVWAP: true,        // V7.2: MANDATORY
+                requireHigherLow: true,   // V7.2: MANDATORY
+                noRejectionWick: true,    // V7.2: MANDATORY
+                requireMomentumIntact: true, // V7.2: MANDATORY
+                onlyFor10PercentCircuit: true,
+                minScore: 75              // V7.2: Minimum score
             }
         };
 
-        // Global config (V7.1 CALIBRATED - NEVER LOOSEN further)
+        // Global config (V7.2 ELITE HARDENING)
         this.config = {
             absoluteMinRoom: 1,              // <1% room = NO ENTRY
             eliteRunnerScore: 85,
             eliteConfidenceBoost: 8,
-            minConfidence: 55,               // Relaxed from 60
-            volumeLookback: 20
+            minConfidence: 58,               // V7.2: Tightened from 55
+            volumeLookback: 20,
+            maxExpectedMAE: 1.0              // V7.2: VOLATILITY GUARD - Reject if MAE >1%
         };
 
         // Score weights (total = 100)
