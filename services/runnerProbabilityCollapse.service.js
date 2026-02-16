@@ -79,42 +79,42 @@ class RunnerProbabilityCollapseService {
         };
 
         // ═══════════════════════════════════════════════════════════════════
-        // STOCK COLLAPSE CONFIG (V7.3 SYMMETRIC)
+        // STOCK COLLAPSE CONFIG (V7.3 SYMMETRIC - CALIBRATED)
         // ═══════════════════════════════════════════════════════════════════
         
         this.stockZoneConfig = {
             EARLY_COLLAPSE: {
-                minVolume: 1.8,               // Volume ≥1.8x
-                maxRS: -1.0,                  // RS ≤ -1% (negative)
-                maxSpread: 0.82,
-                minRemainingRoom: 6,          // Room to circuit DOWN
+                minVolume: 1.6,               // V7.3: Relaxed for early detection
+                maxRS: -0.8,                  // V7.3: RS ≤ -0.8% (negative)
+                maxSpread: 0.85,
+                minRemainingRoom: 5,          // Room to circuit DOWN
                 requireSupportBreak: false,
-                minScore: 67,
+                minScore: 65,
                 signal: 'SELL',
                 priority: 'HIGHEST'
             },
             STRONG_COLLAPSE: {
-                minVolume: 2.3,
-                maxRS: -1.8,                  // RS ≤ -1.8%
-                maxSpread: 0.68,
-                minRemainingRoom: 4.5,
+                minVolume: 2.0,               // V7.3: Calibrated
+                maxRS: -1.5,                  // V7.3: RS ≤ -1.5%
+                maxSpread: 0.75,
+                minRemainingRoom: 4,
                 requireSupportBreak: true,
                 requireLowerHigh: true,
                 noExhaustionWick: true,
-                minScore: 71,
+                minScore: 69,
                 signal: 'STRONG_SELL',
                 priority: 'HIGH'
             },
             EXTENDED_COLLAPSE: {
-                minVolume: 3.2,
-                maxRS: -2.3,
-                maxSpread: 0.58,
-                minRemainingRoom: 3.8,
-                maxSL: 3.8,
+                minVolume: 2.8,               // V7.3: Calibrated
+                maxRS: -2.0,
+                maxSpread: 0.65,
+                minRemainingRoom: 3.5,
+                maxSL: 4.0,
                 requireSupportBreak: true,
                 requireLowerHigh: true,
                 requireATRExpanding: true,
-                minScore: 76,
+                minScore: 74,
                 signal: 'STRONG_SELL',
                 priority: 'MEDIUM'
             },
