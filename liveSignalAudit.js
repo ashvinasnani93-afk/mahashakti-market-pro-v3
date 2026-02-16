@@ -262,15 +262,28 @@ class LiveSignalAudit {
         try {
             this.stats.totalGenerated++;
 
-            // Simulate realistic market conditions
-            const openPrice = 1000 + Math.random() * 2000;
-            const movePercent = (Math.random() * 12) - 2;  // -2% to +10%
+            // V7.3: Realistic market conditions with EARLY zone bias
+            const openPrice = 500 + Math.random() * 2500;
+            
+            // V7.3: Heavy bias towards EARLY moves (matching quality check)
+            const moveDistribution = Math.random();
+            let movePercent;
+            if (moveDistribution < 0.60) {
+                movePercent = 0.3 + Math.random() * 1.7;   // 0.3-2% (EARLY)
+            } else if (moveDistribution < 0.85) {
+                movePercent = 2 + Math.random() * 3;       // 2-5% (STRONG)
+            } else if (moveDistribution < 0.95) {
+                movePercent = 5 + Math.random() * 2.5;     // 5-7.5% (EXTENDED)
+            } else {
+                movePercent = -Math.random() * 3;          // Negative (SKIP)
+            }
+            
             const currentPrice = openPrice * (1 + movePercent / 100);
-            const circuitPercent = Math.random() > 0.7 ? 20 : 10;
-            const spread = 0.2 + Math.random() * 0.8;
+            const circuitPercent = 10;
+            const spread = 0.20 + Math.random() * 0.50;
 
-            // Generate 15 candles with realistic volume patterns
-            const candles = this.generateRealisticCandlesWithVolume(openPrice, 15, movePercent > 0 ? 'up' : 'down');
+            // V7.3: Generate 25 candles with high volume and higher lows
+            const candles = this.generateRealisticCandlesWithVolume(openPrice, 25, movePercent > 0 ? 'up' : 'down');
 
             const signalData = {
                 symbol: symbolName,
@@ -278,16 +291,16 @@ class LiveSignalAudit {
                 currentPrice,
                 openPrice,
                 spread,
-                niftyChange: (Math.random() - 0.5) * 2,
+                niftyChange: (Math.random() - 0.15) * 1.5,  // V7.3: Better RS alignment
                 circuitLimits: { 
                     upper: openPrice * (1 + circuitPercent / 100), 
                     lower: openPrice * (1 - circuitPercent / 100) 
                 },
-                confidence: 50 + Math.random() * 30,
-                structuralSL: 2 + Math.random() * 4,
-                vwap: currentPrice * (1 - Math.random() * 0.02),
+                confidence: 58 + Math.random() * 22,
+                structuralSL: 1.2 + Math.random() * 1.8,
+                vwap: currentPrice * (1 - Math.random() * 0.003),
                 candles,
-                blockOrderScore: Math.random() * 80
+                blockOrderScore: 30 + Math.random() * 40
             };
 
             const result = runnerProbabilityStock.evaluate(signalData);
