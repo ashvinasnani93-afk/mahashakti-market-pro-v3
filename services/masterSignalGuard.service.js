@@ -1,19 +1,23 @@
 /**
- * MASTER SIGNAL GUARD SERVICE - V7 ELITE MODE
+ * MASTER SIGNAL GUARD SERVICE - V7.3 SYMMETRIC ELITE MODE
  * ═══════════════════════════════════════════════════════════════════════════
  * HARD ENFORCEMENT LAYER - ALL 30+ GUARDS IN SIGNAL FLOW
  * 
- * V7 ADDITIONS:
- * - Elite Runner Detection (Stock + Option)
- * - Dynamic Circuit-Aware Entry Logic
- * - Acceleration-Based Option Scoring
- * - Zone-Based Entry Validation
+ * V7.3 ADDITIONS:
+ * - Elite Runner UP Detection (Stock + Option) - BUY/STRONG_BUY
+ * - Elite Collapse DOWN Detection (Stock + Option) - SELL/STRONG_SELL
+ * - Symmetric Pipeline - Same guards for both directions
+ * - No asymmetry in confidence or guards
  * 
- * NEW PIPELINE ORDER (V7):
- * IGNITION → ELITE_RUNNER_CHECK → ADAPTIVE_REGIME → HARD_GUARDS → 
- * CONFIDENCE → EMIT
+ * NEW PIPELINE ORDER (V7.3 SYMMETRIC):
+ * IGNITION → ELITE_RUNNER_UP → ELITE_COLLAPSE_DOWN → ADAPTIVE_REGIME → 
+ * HARD_GUARDS → CONFIDENCE → EMIT
  * 
- * Elite cannot bypass:
+ * SIGNALS EMITTED:
+ * - BUY / STRONG_BUY (Upside runners)
+ * - SELL / STRONG_SELL (Downside collapse)
+ * 
+ * Elite/Collapse cannot bypass:
  * - Structural SL
  * - Execution Reality
  * - Portfolio Commander
@@ -22,20 +26,29 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-// V7: Elite Runner Detection (NEW)
+// V7.3: Elite Runner UP Detection
 let runnerProbabilityStockService = null;
 let runnerProbabilityOptionService = null;
 try {
     runnerProbabilityStockService = require('./runnerProbabilityStock.service');
-    console.log('[MASTER_GUARD] V7 Elite Runner Stock loaded');
+    console.log('[MASTER_GUARD] V7.3 Elite Runner Stock (UP) loaded');
 } catch (e) {
     console.log('[MASTER_GUARD] Elite Runner Stock not available');
 }
 try {
     runnerProbabilityOptionService = require('./runnerProbabilityOption.service');
-    console.log('[MASTER_GUARD] V7 Elite Runner Option loaded');
+    console.log('[MASTER_GUARD] V7.3 Elite Runner Option (UP) loaded');
 } catch (e) {
     console.log('[MASTER_GUARD] Elite Runner Option not available');
+}
+
+// V7.3: Elite Collapse DOWN Detection (NEW)
+let runnerProbabilityCollapseService = null;
+try {
+    runnerProbabilityCollapseService = require('./runnerProbabilityCollapse.service');
+    console.log('[MASTER_GUARD] V7.3 Elite Collapse (DOWN) loaded');
+} catch (e) {
+    console.log('[MASTER_GUARD] Elite Collapse not available');
 }
 
 // Phase 0: V6 ADAPTIVE REGIME (Sets dynamic thresholds)
