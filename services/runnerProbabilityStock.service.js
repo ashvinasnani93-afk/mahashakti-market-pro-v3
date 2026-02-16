@@ -665,12 +665,15 @@ class RunnerProbabilityStockService {
     calculateScore(breakdown, data, zone) {
         let score = 0;
 
-        // Move quality (early = better)
+        // V7.3: Move quality (EARLY gets maximum bonus)
         const movePercent = breakdown.move?.movePercent || 0;
-        if (zone === 'EARLY') score += this.scoreWeights.moveQuality;
-        else if (zone === 'STRONG') score += this.scoreWeights.moveQuality * 0.8;
-        else if (zone === 'EXTENDED') score += this.scoreWeights.moveQuality * 0.5;
-        else if (zone === 'LATE') score += this.scoreWeights.moveQuality * 0.3;
+        if (zone === 'EARLY') {
+            score += this.scoreWeights.moveQuality;
+            score += this.config.earlyZoneBonus || 0;  // V7.3: EARLY zone bonus
+        }
+        else if (zone === 'STRONG') score += this.scoreWeights.moveQuality * 0.75;
+        else if (zone === 'EXTENDED') score += this.scoreWeights.moveQuality * 0.4;
+        else if (zone === 'LATE') score += this.scoreWeights.moveQuality * 0.2;
 
         // Volume
         if (breakdown.volume?.score) {
@@ -701,7 +704,7 @@ class RunnerProbabilityStockService {
             score += this.scoreWeights.vwapAlignment * 0.5; // Default
         }
 
-        // Remaining room
+        // Remaining room (V7.3: More room = higher score)
         if (breakdown.room?.score) {
             score += (breakdown.room.score / 100) * this.scoreWeights.remainingRoom;
         }
