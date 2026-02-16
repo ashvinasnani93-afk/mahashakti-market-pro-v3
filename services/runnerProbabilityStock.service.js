@@ -616,6 +616,47 @@ class RunnerProbabilityStockService {
         };
     }
 
+    // V7.2: VOLATILITY GUARD - Estimate expected MAE based on recent volatility
+    estimateExpectedMAE(candles, spread, zone) {
+        if (!candles || candles.length < 5) {
+            return { mae: 0, reason: 'INSUFFICIENT_DATA' };
+        }
+
+        // Calculate recent volatility from candle ranges
+        const recentCandles = candles.slice(-5);
+        let totalRangePercent = 0;
+        
+        for (const c of recentCandles) {
+            if (c.close && c.close > 0) {
+                const rangePercent = ((c.high - c.low) / c.close) * 100;
+                totalRangePercent += rangePercent;
+            }
+        }
+        
+        const avgRangePercent = totalRangePercent / recentCandles.length;
+        
+        // Expected MAE = Average candle range * zone multiplier + spread impact
+        const zoneMultipliers = {
+            EARLY: 0.8,      // Lower risk in early moves
+            STRONG: 1.0,     // Normal risk
+            EXTENDED: 1.3,   // Higher risk as move extends
+            LATE: 1.6        // Highest risk near circuit
+        };
+        
+        const multiplier = zoneMultipliers[zone] || 1.0;
+        const spreadImpact = spread ? spread * 0.5 : 0;
+        
+        const expectedMAE = (avgRangePercent * multiplier) + spreadImpact;
+        
+        return {
+            mae: expectedMAE,
+            avgRange: avgRangePercent,
+            zoneMultiplier: multiplier,
+            spreadImpact,
+            passed: expectedMAE <= (this.config.maxExpectedMAE || 999)
+        };
+    }
+
     calculateScore(breakdown, data, zone) {
         let score = 0;
 
