@@ -407,8 +407,46 @@ class LiveSignalAudit {
     }
 
     // ───────────────────────────────────────────────────────────────────────
-    // CANDLE GENERATOR (Minimal for performance)
+    // CANDLE GENERATOR - Realistic with Volume Spikes
     // ───────────────────────────────────────────────────────────────────────
+    generateRealisticCandlesWithVolume(basePrice, count, trend) {
+        const candles = [];
+        let price = basePrice;
+        
+        // Base volume (average)
+        const baseVolume = 50000 + Math.random() * 100000;
+        
+        // Determine if this is a high-volume scenario (20% chance)
+        const isHighVolume = Math.random() < 0.20;
+        const volumeMultiplier = isHighVolume ? (2 + Math.random() * 4) : (0.8 + Math.random() * 0.8);
+
+        for (let i = 0; i < count; i++) {
+            const direction = trend === 'up' ? 1 : -1;
+            const movePercent = (Math.random() * 0.5 + 0.1) * direction;
+            price = price * (1 + movePercent / 100);
+
+            const spread = price * 0.003;
+            
+            // Volume pattern: higher in recent candles if high-volume stock
+            let volumeSpike = 1;
+            if (isHighVolume && i >= count - 3) {
+                volumeSpike = 1.5 + Math.random() * 1.5; // 1.5x to 3x spike in recent candles
+            }
+            
+            const candleVolume = baseVolume * volumeMultiplier * volumeSpike * (0.7 + Math.random() * 0.6);
+            
+            candles.push({
+                timestamp: Date.now() - (count - i) * 300000,
+                open: price - spread / 2,
+                high: price + spread,
+                low: price - spread,
+                close: price,
+                volume: Math.round(candleVolume)
+            });
+        }
+        return candles;
+    }
+
     generateMinimalCandles(basePrice, count, trend) {
         const candles = [];
         let price = basePrice;
