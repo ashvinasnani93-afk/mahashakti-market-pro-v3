@@ -181,25 +181,34 @@ class PostEmitQualityCheck {
         const candles = [];
         let price = basePrice;
         const baseVolume = 80000;
+        let prevLow = basePrice * 0.995;  // V7.2: Track for higher low structure
 
         for (let i = 0; i < count; i++) {
             const direction = trend === 'up' ? 1 : -1;
-            const movePercent = (Math.random() * 0.4 + 0.1) * direction;
+            const movePercent = (Math.random() * 0.35 + 0.1) * direction;
             price = price * (1 + movePercent / 100);
 
-            const spread = price * 0.002;
+            // V7.2: Ensure higher lows in uptrend
+            const spreadRange = price * 0.002;
+            let low = price - spreadRange;
+            if (trend === 'up' && i > 0) {
+                low = Math.max(low, prevLow + price * 0.0005); // Ensure higher low
+            }
+            const high = price + spreadRange;
             
-            // High volume in recent candles
-            const volumeMultiplier = i >= count - 3 ? (2.5 + Math.random() * 2) : (1 + Math.random() * 0.5);
+            // High volume in recent candles (increasing toward present)
+            const volumeMultiplier = i >= count - 5 ? (2.5 + Math.random() * 2.5) : (1.2 + Math.random() * 0.8);
             
             candles.push({
                 timestamp: Date.now() - (count - i) * 300000,
-                open: price - spread / 2,
-                high: price + spread,
-                low: price - spread,
+                open: price - spreadRange / 2,
+                high: high,
+                low: low,
                 close: price,
                 volume: Math.round(baseVolume * volumeMultiplier)
             });
+            
+            prevLow = low;
         }
         return candles;
     }
