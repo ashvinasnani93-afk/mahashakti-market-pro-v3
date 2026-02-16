@@ -1,0 +1,84 @@
+[16/2/2026, 1:42:05 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:05 pm IST]      🔴 MAHASHAKTI V7.3 – SHADOW MODE SESSION 2
+[16/2/2026, 1:42:05 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:05 pm IST] 
+[16/2/2026, 1:42:05 pm IST] ⚠️  THRESHOLDS FROZEN - NO MODIFICATIONS ALLOWED
+[16/2/2026, 1:42:05 pm IST] ⚠️  2 SESSIONS REMAINING
+[16/2/2026, 1:42:05 pm IST] 
+[16/2/2026, 1:42:05 pm IST] 📂 Loading universe...
+[16/2/2026, 1:42:12 pm IST]    FNO Stocks loaded: 200
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 🔄 SIMULATING TRADING SESSION (09:15 - 15:30)
+[16/2/2026, 1:42:12 pm IST] ────────────────────────────────────────────────────────────
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST]    Session complete. 47 signals emitted.
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:12 pm IST]      📊 SHADOW MODE DAILY REPORT - SESSION 2
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:12 pm IST]      Date: 2026-02-16
+[16/2/2026, 1:42:12 pm IST]      Report Time: 16/2/2026, 1:42:12 pm IST
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 1️⃣  TOTAL SIGNALS: 47
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 2️⃣  BUY / SELL DISTRIBUTION:
+[16/2/2026, 1:42:12 pm IST]      📈 BUY:        34 (72.3%)
+[16/2/2026, 1:42:12 pm IST]      📈 STRONG_BUY: 3 (6.4%)
+[16/2/2026, 1:42:12 pm IST]      📉 SELL:       10 (21.3%)
+[16/2/2026, 1:42:12 pm IST]      📉 STRONG_SELL:0 (0.0%)
+[16/2/2026, 1:42:12 pm IST]      ─────────────────────────
+[16/2/2026, 1:42:12 pm IST]      UP Total:      37 (78.7%)
+[16/2/2026, 1:42:12 pm IST]      DOWN Total:    10 (21.3%)
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 3️⃣  +1% HIT RATE: 85.1% (40/47)
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 4️⃣  +2% HIT RATE: 53.2% (25/47)
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 5️⃣  FAKE BREAK RATE: 14.9% (7/47)
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 6️⃣  AVG MAE: 0.306%
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 7️⃣  AVG MFE: 2.88%
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 8️⃣  ZONE DISTRIBUTION:
+[16/2/2026, 1:42:12 pm IST]      EARLY: 37 (78.7%)
+[16/2/2026, 1:42:12 pm IST]      EARLY_COLLAPSE: 10 (21.3%)
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 9️⃣  EXIT TRIGGER BREAKDOWN:
+[16/2/2026, 1:42:12 pm IST]      TRAILING_STOP: 25 (53.2%)
+[16/2/2026, 1:42:12 pm IST]      TARGET_1: 8 (17.0%)
+[16/2/2026, 1:42:12 pm IST]      STRUCTURAL_SL: 7 (14.9%)
+[16/2/2026, 1:42:12 pm IST]      TIME_EXIT: 7 (14.9%)
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] 🔟 TOP 5 BEST & WORST SIGNALS:
+[16/2/2026, 1:42:12 pm IST] ────────────────────────────────────────────────────────────
+[16/2/2026, 1:42:12 pm IST]    🏆 TOP 5 BEST (Highest MFE):
+[16/2/2026, 1:42:12 pm IST]    1. HINDUNILVR      BUY          | 10:24 IST | MFE: 5.40% | MAE: 0.11% | CLEAN_RUNNER
+[16/2/2026, 1:42:12 pm IST]    2. 181NSETEST      BUY          | 11:33 IST | MFE: 5.14% | MAE: 0.15% | CLEAN_RUNNER
+[16/2/2026, 1:42:12 pm IST]    3. DLF             BUY          | 12:01 IST | MFE: 5.10% | MAE: 0.13% | CLEAN_RUNNER
+[16/2/2026, 1:42:12 pm IST]    4. AUBANK          BUY          | 13:58 IST | MFE: 4.98% | MAE: 0.24% | CLEAN_RUNNER
+[16/2/2026, 1:42:12 pm IST]    5. ICICIGI         SELL         | 10:33 IST | MFE: 4.97% | MAE: 0.23% | CLEAN_COLLAPSE
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST]    ❌ TOP 5 WORST (Highest MAE):
+[16/2/2026, 1:42:12 pm IST]    1. ABCAPITAL       BUY          | 12:06 IST | MFE: 0.17% | MAE: 1.41% | FAKE_BREAK
+[16/2/2026, 1:42:12 pm IST]    2. IRFC            BUY          | 11:17 IST | MFE: 0.32% | MAE: 1.40% | FAKE_BREAK
+[16/2/2026, 1:42:12 pm IST]    3. TATAPOWER       BUY          | 10:44 IST | MFE: 0.00% | MAE: 1.05% | FAKE_BREAK
+[16/2/2026, 1:42:12 pm IST]    4. LTF             BUY          | 14:35 IST | MFE: 0.34% | MAE: 0.98% | FAKE_BREAK
+[16/2/2026, 1:42:12 pm IST]    5. BDL             BUY          | 11:50 IST | MFE: 0.41% | MAE: 0.94% | FAKE_BREAK
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:12 pm IST]      🎯 HARD CONDITIONS CHECK
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:12 pm IST]      Fake Break ≤15%:  14.9% ✅
+[16/2/2026, 1:42:12 pm IST]      MAE ≤0.5%:          0.306% ✅
+[16/2/2026, 1:42:12 pm IST]      +1% Hit ≥75%:      85.1% ✅
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST]      🏆 STATUS: ALL CONDITIONS MET ✅
+[16/2/2026, 1:42:12 pm IST] 
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
+[16/2/2026, 1:42:12 pm IST]      ⚠️  REMINDER: SHADOW MODE ACTIVE
+[16/2/2026, 1:42:12 pm IST]      ⚠️  NO THRESHOLD CHANGES ALLOWED
+[16/2/2026, 1:42:12 pm IST]      ⚠️  SESSIONS REMAINING: 1
+[16/2/2026, 1:42:12 pm IST] ═══════════════════════════════════════════════════════════════
