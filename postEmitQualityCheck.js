@@ -135,10 +135,10 @@ class PostEmitQualityCheck {
 
         const currentPrice = openPrice * (1 + movePercent / 100);
         const circuitPercent = 10;
-        const spread = 0.3 + Math.random() * 0.5;
+        const spread = 0.25 + Math.random() * 0.4;    // V7.2: Tighter spread for quality
 
-        // Generate candles with high volume (to pass volume filter)
-        const candles = this.generateHighVolumeCandless(openPrice, 15, 'up');
+        // V7.2: Generate 25 candles for ATR check (needs 20+)
+        const candles = this.generateHighVolumeCandless(openPrice, 25, 'up');
 
         const signalData = {
             symbol: symbolName,
@@ -146,14 +146,14 @@ class PostEmitQualityCheck {
             currentPrice,
             openPrice,
             spread,
-            niftyChange: (Math.random() - 0.3) * 1.5,
+            niftyChange: (Math.random() - 0.2) * 1.5,  // V7.2: Better RS alignment
             circuitLimits: { 
                 upper: openPrice * (1 + circuitPercent / 100), 
                 lower: openPrice * (1 - circuitPercent / 100) 
             },
-            confidence: 55 + Math.random() * 25,
-            structuralSL: 2 + Math.random() * 2,
-            vwap: currentPrice * (1 - Math.random() * 0.01),
+            confidence: 58 + Math.random() * 22,       // V7.2: Higher min confidence
+            structuralSL: 1.5 + Math.random() * 2,     // V7.2: Tighter SL
+            vwap: currentPrice * (1 - Math.random() * 0.005), // V7.2: Closer to VWAP
             candles,
             blockOrderScore: 30 + Math.random() * 40
         };
@@ -171,6 +171,7 @@ class PostEmitQualityCheck {
                 score: result.score,
                 confidence: signalData.confidence,
                 spread,
+                expectedMAE: result.breakdown?.expectedMAE?.mae || 0,
                 timestamp: this.timestamp()
             });
         }
