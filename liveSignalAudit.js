@@ -320,7 +320,8 @@ class LiveSignalAudit {
             const currentPremium = openPremium * (1 + premiumMovePercent / 100);
             const spread = 5 + Math.random() * 15;
 
-            const candles = this.generateMinimalCandles(openPremium, 5, 'up');
+            // Generate 15 candles with realistic volume patterns
+            const candles = this.generateRealisticCandlesWithVolume(openPremium, 15, 'up');
 
             const signalData = {
                 symbol: symbolName,
