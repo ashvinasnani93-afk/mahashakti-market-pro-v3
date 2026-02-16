@@ -75,15 +75,15 @@ class RunnerProbabilityOptionService {
             }
         };
 
-        // Global config
+        // Global config (V7.1 CALIBRATED)
         this.config = {
             eliteRunnerScore: 85,
             eliteConfidenceBoost: 8,
-            minConfidence: 60,
-            exhaustionWickThreshold: 45,     // >45% wick = exhaustion
-            maxOTMDistance: 5,               // >5% OTM = reject
-            thetaStableThreshold: -5,        // Theta decay limit
-            ivCollapseThreshold: -15         // IV crush limit
+            minConfidence: 55,               // Relaxed from 60
+            exhaustionWickThreshold: 50,     // Relaxed from 45
+            maxOTMDistance: 6,               // Relaxed from 5
+            thetaStableThreshold: -8,        // Relaxed from -5
+            ivCollapseThreshold: -10         // Relaxed from -15
         };
 
         // Score weights (total = 100)
