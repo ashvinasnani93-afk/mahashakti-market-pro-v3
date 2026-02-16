@@ -122,22 +122,22 @@ class PostEmitQualityCheck {
         // Simulate market data with bias towards passable conditions
         const openPrice = 500 + Math.random() * 2500;
         
-        // Bias towards early moves (0-2%) to increase emit rate
+        // V7.3: Heavy bias towards EARLY moves (0-2%)
         const moveDistribution = Math.random();
         let movePercent;
-        if (moveDistribution < 0.5) {
-            movePercent = 0.5 + Math.random() * 1.5;   // 0.5-2% (EARLY zone)
-        } else if (moveDistribution < 0.75) {
-            movePercent = 2 + Math.random() * 3;       // 2-5% (STRONG zone)
+        if (moveDistribution < 0.65) {
+            movePercent = 0.3 + Math.random() * 1.7;   // 0.3-2% (EARLY zone) - 65% of signals
+        } else if (moveDistribution < 0.90) {
+            movePercent = 2 + Math.random() * 3;       // 2-5% (STRONG zone) - 25% of signals
         } else {
-            movePercent = 5 + Math.random() * 3;       // 5-8% (EXTENDED zone)
+            movePercent = 5 + Math.random() * 2.5;     // 5-7.5% (EXTENDED zone) - 10% of signals
         }
 
         const currentPrice = openPrice * (1 + movePercent / 100);
         const circuitPercent = 10;
-        const spread = 0.25 + Math.random() * 0.4;    // V7.2: Tighter spread for quality
+        const spread = 0.20 + Math.random() * 0.45;   // V7.3: Tighter spread range
 
-        // V7.2: Generate 25 candles for ATR check (needs 20+)
+        // V7.3: Generate 25 candles for ATR check (needs 20+)
         const candles = this.generateHighVolumeCandless(openPrice, 25, 'up');
 
         const signalData = {
@@ -146,14 +146,14 @@ class PostEmitQualityCheck {
             currentPrice,
             openPrice,
             spread,
-            niftyChange: (Math.random() - 0.2) * 1.5,  // V7.2: Better RS alignment
+            niftyChange: (Math.random() - 0.15) * 1.5,  // V7.3: Better RS alignment
             circuitLimits: { 
                 upper: openPrice * (1 + circuitPercent / 100), 
                 lower: openPrice * (1 - circuitPercent / 100) 
             },
-            confidence: 58 + Math.random() * 22,       // V7.2: Higher min confidence
-            structuralSL: 1.5 + Math.random() * 2,     // V7.2: Tighter SL
-            vwap: currentPrice * (1 - Math.random() * 0.005), // V7.2: Closer to VWAP
+            confidence: 58 + Math.random() * 22,
+            structuralSL: 1.2 + Math.random() * 1.8,   // V7.3: Tighter SL range
+            vwap: currentPrice * (1 - Math.random() * 0.003), // V7.3: Very close to VWAP
             candles,
             blockOrderScore: 30 + Math.random() * 40
         };
