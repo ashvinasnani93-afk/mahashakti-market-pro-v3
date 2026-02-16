@@ -32,44 +32,45 @@ class RunnerProbabilityOptionService {
             LATE: { min: 30, max: 60 }       // >30% premium move
         };
 
-        // Zone-specific requirements
+        // Zone-specific requirements (V7.1 CALIBRATED - Based on real market percentiles)
+        // Target emit rate: 3-8%
         this.zoneConfig = {
             EARLY: {
-                minPremiumChange2Candle: 4,  // ≥4% in 2 candles
-                minOIVelocity: 1.5,
-                maxSpread: 18,
-                requireUnderlyingAligned: true,
+                minPremiumChange2Candle: 3,  // Relaxed from 4%
+                minOIVelocity: 1.2,          // Relaxed from 1.5
+                maxSpread: 20,               // Relaxed from 18
+                requireUnderlyingAligned: false,  // Relaxed
                 requireDeltaAccelerating: false,
                 priority: 'HIGH'
             },
             STRONG: {
-                minPremiumChange2Candle: 3,
-                minOIVelocity: 1.8,
-                maxSpread: 15,
-                requireUnderlyingAligned: true,
-                requireDeltaAccelerating: true,
-                requireMomentumIntact: true,
+                minPremiumChange2Candle: 2,  // Relaxed from 3%
+                minOIVelocity: 1.5,          // Relaxed from 1.8
+                maxSpread: 18,               // Relaxed from 15
+                requireUnderlyingAligned: false,  // Relaxed
+                requireDeltaAccelerating: false,  // Relaxed
+                requireMomentumIntact: false,     // Relaxed
                 priority: 'HIGH'
             },
             EXTENDED: {
-                minPremiumChange2Candle: 2,
-                minOIVelocity: 2.0,
-                maxSpread: 12,
-                maxSL: 6,
-                requireUnderlyingAligned: true,
-                requireDeltaAccelerating: true,
-                requireMomentumIntact: true,
-                checkExhaustion: true,
+                minPremiumChange2Candle: 1.5, // Relaxed from 2%
+                minOIVelocity: 1.8,           // Relaxed from 2.0
+                maxSpread: 15,                // Relaxed from 12
+                maxSL: 7,                     // Relaxed from 6
+                requireUnderlyingAligned: false,  // Relaxed
+                requireDeltaAccelerating: false,  // Relaxed
+                requireMomentumIntact: false,     // Relaxed
+                checkExhaustion: false,           // Relaxed
                 priority: 'MEDIUM'
             },
             LATE: {
-                minPremiumChange2Candle: 2,
-                minOIVelocity: 2.5,
-                maxSpread: 10,
-                maxSL: 5,
-                requireUnderlyingAligned: true,
-                requireStructureCheck: true,
-                checkExhaustion: true,
+                minPremiumChange2Candle: 1.5, // Relaxed from 2%
+                minOIVelocity: 2.0,           // Relaxed from 2.5
+                maxSpread: 12,                // Relaxed from 10
+                maxSL: 6,                     // Relaxed from 5
+                requireUnderlyingAligned: false,  // Relaxed
+                requireStructureCheck: false,     // Relaxed
+                checkExhaustion: false,           // Relaxed
                 priority: 'LOW'
             }
         };
