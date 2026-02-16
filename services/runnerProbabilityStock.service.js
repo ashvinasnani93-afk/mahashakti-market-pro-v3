@@ -70,12 +70,12 @@ class RunnerProbabilityStockService {
             }
         };
 
-        // Global config (NEVER LOOSEN)
+        // Global config (V7.1 CALIBRATED - NEVER LOOSEN further)
         this.config = {
             absoluteMinRoom: 1,              // <1% room = NO ENTRY
             eliteRunnerScore: 85,
             eliteConfidenceBoost: 8,
-            minConfidence: 60,
+            minConfidence: 55,               // Relaxed from 60
             volumeLookback: 20
         };
 
