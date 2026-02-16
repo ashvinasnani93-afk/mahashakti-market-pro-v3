@@ -420,7 +420,7 @@ class LiveSignalAudit {
     }
 
     // ───────────────────────────────────────────────────────────────────────
-    // CANDLE GENERATOR - Realistic with Volume Spikes
+    // CANDLE GENERATOR - V7.3 Realistic with Volume Spikes + Higher Lows
     // ───────────────────────────────────────────────────────────────────────
     generateRealisticCandlesWithVolume(basePrice, count, trend) {
         const candles = [];
@@ -429,33 +429,44 @@ class LiveSignalAudit {
         // Base volume (average)
         const baseVolume = 50000 + Math.random() * 100000;
         
-        // Determine if this is a high-volume scenario (20% chance)
-        const isHighVolume = Math.random() < 0.20;
-        const volumeMultiplier = isHighVolume ? (2 + Math.random() * 4) : (0.8 + Math.random() * 0.8);
+        // Determine if this is a high-volume scenario (30% chance for more emits)
+        const isHighVolume = Math.random() < 0.30;
+        const volumeMultiplier = isHighVolume ? (2 + Math.random() * 3) : (1.2 + Math.random() * 0.8);
+        
+        let prevLow = basePrice * 0.995;  // V7.3: Track for higher low structure
 
         for (let i = 0; i < count; i++) {
             const direction = trend === 'up' ? 1 : -1;
-            const movePercent = (Math.random() * 0.5 + 0.1) * direction;
+            const movePercent = (Math.random() * 0.35 + 0.1) * direction;
             price = price * (1 + movePercent / 100);
 
-            const spread = price * 0.003;
+            const spreadRange = price * 0.002;
+            
+            // V7.3: Ensure higher lows in uptrend
+            let low = price - spreadRange;
+            if (trend === 'up' && i > 0) {
+                low = Math.max(low, prevLow + price * 0.0003);
+            }
+            const high = price + spreadRange;
             
             // Volume pattern: higher in recent candles if high-volume stock
             let volumeSpike = 1;
-            if (isHighVolume && i >= count - 3) {
-                volumeSpike = 1.5 + Math.random() * 1.5; // 1.5x to 3x spike in recent candles
+            if (isHighVolume && i >= count - 5) {
+                volumeSpike = 1.5 + Math.random() * 1.5;
             }
             
-            const candleVolume = baseVolume * volumeMultiplier * volumeSpike * (0.7 + Math.random() * 0.6);
+            const candleVolume = baseVolume * volumeMultiplier * volumeSpike * (0.8 + Math.random() * 0.4);
             
             candles.push({
                 timestamp: Date.now() - (count - i) * 300000,
-                open: price - spread / 2,
-                high: price + spread,
-                low: price - spread,
+                open: price - spreadRange / 2,
+                high: high,
+                low: low,
                 close: price,
                 volume: Math.round(candleVolume)
             });
+            
+            prevLow = low;
         }
         return candles;
     }
