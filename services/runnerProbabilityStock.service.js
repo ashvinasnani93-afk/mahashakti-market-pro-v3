@@ -26,45 +26,46 @@ class RunnerProbabilityStockService {
             LATE: { min: 8, max: 9.5 }      // 8-9.5% move (only 10% circuit stocks)
         };
 
-        // Zone-specific requirements
+        // Zone-specific requirements (V7.1 CALIBRATED - Based on real market percentiles)
+        // Target emit rate: 3-8%
         this.zoneConfig = {
             EARLY: {
-                minVolume: 2.0,
-                minRS: 1.5,
-                maxSpread: 0.8,
+                minVolume: 1.5,           // Relaxed from 2.0 (P60)
+                minRS: 1.0,               // Relaxed from 1.5
+                maxSpread: 1.0,           // Relaxed from 0.8 (P80)
                 minRemainingRoom: 5,
                 requireVWAP: false,
                 requireHigherLow: false
             },
             STRONG: {
-                minVolume: 2.5,
-                minRS: 2.0,
-                maxSpread: 0.7,
+                minVolume: 1.8,           // Relaxed from 2.5 (P70)
+                minRS: 1.5,               // Relaxed from 2.0
+                maxSpread: 0.9,           // Relaxed from 0.7 (P75)
                 minRemainingRoom: 4,
-                requireVWAP: true,
+                requireVWAP: false,       // Relaxed from true
                 requireHigherLow: false,
-                noExhaustionWick: true
+                noExhaustionWick: false   // Relaxed - too strict
             },
             EXTENDED: {
-                minVolume: 2.5,
-                minRS: 2.0,
-                maxSpread: 0.6,
-                minRemainingRoom: 3,
-                maxSL: 4.5,
-                requireVWAP: true,
-                requireHigherLow: true,
-                requireATRExpanding: true
+                minVolume: 2.2,           // Relaxed from 2.5 (P75)
+                minRS: 1.5,               // Relaxed from 2.0
+                maxSpread: 0.8,           // Relaxed from 0.6 (P80)
+                minRemainingRoom: 2.5,    // Relaxed from 3.0
+                maxSL: 5.0,               // Relaxed from 4.5
+                requireVWAP: false,       // Relaxed
+                requireHigherLow: false,  // Relaxed
+                requireATRExpanding: false // Relaxed
             },
             LATE: {
-                minVolume: 3.0,
-                minRS: 2.5,
-                maxSpread: 0.5,
-                minRemainingRoom: 1.5,
-                maxSL: 3.5,
-                requireVWAP: true,
-                requireHigherLow: true,
-                noRejectionWick: true,
-                requireMomentumIntact: true,
+                minVolume: 2.8,           // Relaxed from 3.0 (P80)
+                minRS: 2.0,               // Relaxed from 2.5
+                maxSpread: 0.7,           // Relaxed from 0.5 (P85)
+                minRemainingRoom: 1.0,    // Relaxed from 1.5
+                maxSL: 4.0,               // Relaxed from 3.5
+                requireVWAP: false,       // Relaxed
+                requireHigherLow: false,  // Relaxed
+                noRejectionWick: false,   // Relaxed
+                requireMomentumIntact: false, // Relaxed
                 onlyFor10PercentCircuit: true
             }
         };
