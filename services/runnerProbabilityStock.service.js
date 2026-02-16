@@ -356,6 +356,31 @@ class RunnerProbabilityStockService {
         result.score = this.calculateScore(result.breakdown, data, zone);
 
         // ═══════════════════════════════════════════════════════════════
+        // STEP 5.1: V7.2 MINIMUM SCORE CHECK (per zone)
+        // ═══════════════════════════════════════════════════════════════
+        if (zoneReqs.minScore && result.score < zoneReqs.minScore) {
+            result.blockers.push({
+                filter: 'MIN_SCORE',
+                reason: `Score ${result.score} < ${zoneReqs.minScore} (${zone} zone minimum)`,
+                severity: 'ZONE_BLOCK'
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // STEP 5.2: V7.2 VOLATILITY GUARD - Expected MAE check
+        // ═══════════════════════════════════════════════════════════════
+        const expectedMAE = this.estimateExpectedMAE(candles, spread, zone);
+        result.breakdown.expectedMAE = expectedMAE;
+        
+        if (this.config.maxExpectedMAE && expectedMAE.mae > this.config.maxExpectedMAE) {
+            result.blockers.push({
+                filter: 'VOLATILITY_GUARD',
+                reason: `Expected MAE ${expectedMAE.mae.toFixed(2)}% > ${this.config.maxExpectedMAE}% limit`,
+                severity: 'HARD_BLOCK'
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // STEP 6: Final decision
         // ═══════════════════════════════════════════════════════════════
 
