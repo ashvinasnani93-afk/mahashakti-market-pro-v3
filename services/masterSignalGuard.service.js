@@ -387,6 +387,111 @@ class MasterSignalGuardService {
         }
 
         // ================================================================
+        // V7.3: ELITE COLLAPSE DOWN CHECK (SYMMETRIC - AFTER UP CHECK)
+        // Detects 650 → 100 type collapses for SELL/STRONG_SELL
+        // ================================================================
+        let eliteCollapseResult = { passed: false, score: 0, isElite: false, zone: null, signal: null };
+        
+        // Only check collapse if UP runner didn't pass (avoid conflicting signals)
+        if (runnerProbabilityCollapseService && !eliteRunnerResult.passed) {
+            
+            if (!isOption && candles && candles.length >= 20) {
+                // Stock Collapse check
+                const openPrice = signal?.openPrice || candles[0]?.open || ltp * 1.01;
+                const circuitLimits = signal?.circuitLimits || { upper: openPrice * 1.10, lower: openPrice * 0.90 };
+                const niftyChange = signal?.niftyChange || 0;
+                const vwap = signal?.vwap || ltp;
+                const structuralSL = signal?.structuralSL?.riskPercent || 4;
+                const confidence = signal?.confidence || 55;
+                
+                eliteCollapseResult = runnerProbabilityCollapseService.evaluateStockCollapse({
+                    symbol: signal?.instrument?.symbol || token,
+                    token,
+                    currentPrice: ltp,
+                    openPrice,
+                    spread: spreadPercent,
+                    niftyChange,
+                    circuitLimits,
+                    confidence,
+                    structuralSL,
+                    vwap,
+                    candles
+                });
+                
+                result.checks.push({ 
+                    name: 'ELITE_COLLAPSE_STOCK', 
+                    passed: eliteCollapseResult.passed,
+                    score: eliteCollapseResult.score,
+                    zone: eliteCollapseResult.zone,
+                    signal: eliteCollapseResult.signal,
+                    isElite: eliteCollapseResult.isElite
+                });
+                
+            } else if (isOption && candles && candles.length >= 5) {
+                // Option Collapse check
+                const openPremium = signal?.openPremium || candles[0]?.open || ltp * 1.05;
+                const underlyingChange = signal?.underlyingChange || 0;
+                const underlyingDirection = underlyingChange > 0 ? 'BULLISH' : 'BEARISH';
+                const optionType = signal?.optionType || 'CE';
+                const oi = signal?.oi || 0;
+                const prevOI = signal?.prevOI || oi * 1.1;
+                const iv = signal?.iv || 20;
+                const prevIV = signal?.prevIV || iv + 2;
+                const confidence = signal?.confidence || 55;
+                const structuralSL = signal?.structuralSL?.riskPercent || 5;
+                
+                eliteCollapseResult = runnerProbabilityCollapseService.evaluateOptionCollapse({
+                    symbol: signal?.instrument?.symbol || token,
+                    token,
+                    currentPremium: ltp,
+                    openPremium,
+                    spread: spreadPercent,
+                    underlyingChange,
+                    underlyingDirection,
+                    optionType,
+                    oi,
+                    prevOI,
+                    iv,
+                    prevIV,
+                    confidence,
+                    structuralSL,
+                    candles
+                });
+                
+                result.checks.push({ 
+                    name: 'ELITE_COLLAPSE_OPTION', 
+                    passed: eliteCollapseResult.passed,
+                    score: eliteCollapseResult.score,
+                    zone: eliteCollapseResult.zone,
+                    signal: eliteCollapseResult.signal,
+                    isElite: eliteCollapseResult.isElite
+                });
+            }
+            
+            // Apply collapse signal if detected
+            if (eliteCollapseResult.passed && eliteCollapseResult.signal) {
+                result.signal.eliteCollapse = {
+                    tag: eliteCollapseResult.isElite ? 'ELITE_COLLAPSE' : 'COLLAPSE',
+                    signal: eliteCollapseResult.signal,
+                    score: eliteCollapseResult.score,
+                    zone: eliteCollapseResult.zone
+                };
+                
+                // Override signal type to SELL/STRONG_SELL
+                result.signal.direction = 'DOWN';
+                result.signal.signalType = eliteCollapseResult.signal;
+                
+                if (eliteCollapseResult.isElite) {
+                    result.adjustments.push({
+                        type: 'ELITE_COLLAPSE_BOOST',
+                        reason: `Elite Collapse detected (Score: ${eliteCollapseResult.score}, Zone: ${eliteCollapseResult.zone})`,
+                        boost: 10
+                    });
+                }
+            }
+        }
+
+        // ================================================================
         // V6: ADAPTIVE REGIME CHECK (BEFORE ALL VALIDATION)
         // Sets dynamic thresholds based on market regime
         // ================================================================
